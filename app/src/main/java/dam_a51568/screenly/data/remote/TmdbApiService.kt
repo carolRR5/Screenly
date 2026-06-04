@@ -1,0 +1,60 @@
+package dam_a51568.screenly.data.remote
+
+import dam_a51568.screenly.data.models.TmdbMovieDetails
+import dam_a51568.screenly.data.models.TmdbSearchResponse
+import dam_a51568.screenly.data.models.TmdbTvShowDetails
+import retrofit2.http.GET
+import retrofit2.http.Path
+import retrofit2.http.Query
+
+/**
+ * Interface Retrofit que define os endpoints da API do TMDb usados na aplicação.
+ * O Retrofit gera automaticamente a implementação em tempo de execução.
+ * Todos os métodos são suspend function para serem chamados dentro de coroutines.
+ */
+interface TmdbApiService {
+    /**
+     * Pesquisa filmes e séries em simultâneo pelo nome.
+     *
+     * @param query Texto introduzido pelo utilizador na barra de pesquisa.
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados (por defeito português de Portugal).
+     * @return Lista de resultados com filmes e séries correspondentes à pesquisa.
+     */
+    @GET("search/multi")
+    suspend fun searchMulti(
+        @Query("query") query: String,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbSearchResponse
+
+    /**
+     * Obtém os detalhes completos de um filme pelo seu ID do TMDb.
+     *
+     * @param id Identificador único do filme no TMDb.
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos dados devolvidos (por defeito português de Portugal).
+     * @return Objeto com todos os detalhes do filme.
+     */
+    @GET("movie/{id}")
+    suspend fun getMovieDetails(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbMovieDetails
+
+    /**
+     * Obtém os detalhes completos de uma série pelo seu ID do TMDb.
+     *
+     * @param id Identificador único da série no TMDb.
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos dados devolvidos (por defeito português de Portugal).
+     * @return Objeto com todos os detalhes da série.
+     */
+    @GET("tv/{id}")
+    suspend fun getTvShowDetails(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbTvShowDetails
+}

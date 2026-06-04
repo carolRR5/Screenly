@@ -1,0 +1,86 @@
+package dam_a51568.screenly.data.models
+
+import com.google.gson.annotations.SerializedName
+
+// Representa a resposta da API do TMDb. Contém a lista de resultados devolvidos pela pesquisa.
+data class TmdbSearchResponse(
+    @SerializedName("results") val results: List<TmdbMediaItem>
+)
+
+/**
+ * Representa um item individual (filme ou série) devolvido pela pesquisa.
+ * A API do TMDb utiliza campos diferentes consoante o tipo de conteúdo:
+ * - Para filmes é usado "title" e "release_date"
+ * - Para séries é usado "name" e "first_air_date"
+ * O campo "media_type" indica qual dos dois tipos é.
+ */
+data class TmdbMediaItem(
+    @SerializedName("id") val id: Int,
+    @SerializedName("media_type") val mediaType: String, // "movie" para filmes, "tv" para séries
+    @SerializedName("title") val title: String?, // Usado para filmes
+    @SerializedName("name") val name: String?,   // Usado para séries
+    @SerializedName("overview") val overview: String?,
+    @SerializedName("poster_path") val posterPath: String?,
+    @SerializedName("release_date") val releaseDate: String?, // Filmes
+    @SerializedName("first_air_date") val firstAirDate: String?, // Séries
+    @SerializedName("vote_average") val voteAverage: Double?
+) {
+    // Devolve o título a apresentar na UI, independentemente de ser filme ou série.
+    val displayTitle: String
+        get() = title ?: name ?: "Título Desconhecido"
+
+    // Devolve apenas o ano de lançamento a partir da data completa (ex: "2023-04-15" corresponde a "2023").
+    // Funciona tanto para filmes como para séries
+    val displayYear: String
+        get() {
+            val date = releaseDate ?: firstAirDate ?: return "N/A"
+            return if (date.length >= 4) date.substring(0, 4) else "N/A"
+        }
+}
+
+/**
+ * Representa os detalhes completos de um filme.
+ * Utilizado no ecrã de detalhes após o utilizador selecionar um filme nos resultados de pesquisa.
+ */
+data class TmdbMovieDetails(
+    @SerializedName("id") val id: Int,
+    @SerializedName("title") val title: String,
+    @SerializedName("overview") val overview: String?,
+    @SerializedName("poster_path") val posterPath: String?,
+    @SerializedName("release_date") val releaseDate: String?,
+    @SerializedName("runtime") val runtime: Int?, // Duração total do filme em minutos
+    @SerializedName("genres") val genres: List<TmdbGenre>?,
+    @SerializedName("vote_average") val voteAverage: Double?
+)
+
+/**
+ * Representa os detalhes completos de uma série.
+ * Utilizado no ecrã de detalhes após o utilizador selecionar uma série nos resultados de pesquisa.
+ */
+data class TmdbTvShowDetails(
+    @SerializedName("id") val id: Int,
+    @SerializedName("name") val name: String,
+    @SerializedName("overview") val overview: String?,
+    @SerializedName("poster_path") val posterPath: String?,
+    @SerializedName("first_air_date") val firstAirDate: String?,
+    @SerializedName("episode_run_time") val episodeRunTime: List<Int>?, // Durações possíveis de episódios em minutos
+    @SerializedName("genres") val genres: List<TmdbGenre>?,
+    @SerializedName("vote_average") val voteAverage: Double?
+) {
+    /**
+     * Devolve a duração típica de um episódio em minutos.
+     * A API pode devolver uma lista com vários valores (episódios de durações diferentes), por isso
+     * utiliza-se o primeiro como referência. Assume 45 minutos se a lista estiver vazia.
+     */
+    val typicalEpisodeRuntime: Int
+        get() = episodeRunTime?.firstOrNull() ?: 45 // 45min por defeito se não houver dados
+}
+
+/**
+ * Representa um género associado a um filme ou série (ex: Ação, Comédia, Drama).
+ * Partilhado entre TmdbMovieDetails e TmdbTvShowDetails.
+ */
+data class TmdbGenre(
+    @SerializedName("id") val id: Int,
+    @SerializedName("name") val name: String
+)
