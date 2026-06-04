@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.services)
 }
 
 val localProperties = Properties().apply {
@@ -76,6 +77,12 @@ dependencies {
     // Retrofit & Networking
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
+
+    // Firebase (Authentication & Cloud Firestore)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+
 
     // Testes
     testImplementation(libs.junit)

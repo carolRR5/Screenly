@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "148998180331",
+    "project_id": "dam-projetofinal-2ec38",
+    "storage_bucket": "dam-projetofinal-2ec38.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:148998180331:android:e4d6f3339fbfca857a5dae",
+        "android_client_info": {
+          "package_name": "dam_a51568.screenly"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoxzQhfyF5sPbg4E-2V7CXlrP0kL0q3xQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
