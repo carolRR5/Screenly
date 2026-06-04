@@ -59,6 +59,10 @@ dependencies {
     // Coil (Carregamento de Imagens)
     implementation(libs.coil.compose)
 
+    // Retrofit & Networking
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+
     // Testes
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
