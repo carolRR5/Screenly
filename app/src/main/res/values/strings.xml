@@ -1,3 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Screenly</string>
+
+    <!-- Login -->
+    <string name="login_title">Screenly</string>
+    <string name="login_subtitle">Gere o teu catálogo de filmes e séries</string>
+    <string name="login_hint_email">Email</string>
+    <string name="login_hint_password">Palavra-passe</string>
+    <string name="login_button">Entrar</string>
+    <string name="login_go_to_register">Não tem conta? Registe-se aqui</string>
+
+    <!-- Registo -->
+    <string name="register_title">Criar conta</string>
+    <string name="register_subtitle">Comece a gerir o seu catálogo pessoal</string>
+    <string name="register_hint_email">Email</string>
+    <string name="register_hint_password">Palavra-passe</string>
+    <string name="register_hint_confirm_password">Confirmar palavra-passe</string>
+    <string name="register_button">Criar conta</string>
+    <string name="register_go_to_login">Já tem conta? Entre aqui</string>
+
+    <!-- Erros de validação -->
+    <string name="error_email_empty">O email não pode estar vazio</string>
+    <string name="error_email_invalid">Introduza um email válido</string>
+    <string name="error_password_empty">A palavra-passe não pode estar vazia</string>
+    <string name="error_password_short">A palavra-passe deve ter pelo menos 6 caracteres</string>
+    <string name="error_confirm_password_empty">Confirme a sua palavra-passe</string>
+    <string name="error_passwords_no_match">As palavras-passe não coincidem</string>
 </resources>
