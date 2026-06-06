@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -24,13 +23,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import dam_a51568.screenly.data.models.TmdbMediaItem
 import dam_a51568.screenly.data.remote.TmdbClient
-
-/** Cores da paleta da aplicação. */
-private val BackgroundDark = Color(0xFF121829)
-private val CardBackground = Color(0xFF1A2236)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF8F9CAE)
-private val BrandPurple = Color(0xFF6C5CE7)
+import dam_a51568.screenly.ui.theme.BackgroundDark
+import dam_a51568.screenly.ui.theme.BrandPurple
+import dam_a51568.screenly.ui.theme.CardBackground
+import dam_a51568.screenly.ui.theme.ErrorRed
+import dam_a51568.screenly.ui.theme.TextPrimary
+import dam_a51568.screenly.ui.theme.TextSecondary
 
 /**
  * Ecrã de Pesquisa da aplicação Screenly.
@@ -56,7 +54,6 @@ fun SearchScreen(
             .background(BackgroundDark)
             .padding(16.dp)
     ) {
-        // Barra de pesquisa
         SearchBar(
             query = query,
             onQueryChange = viewModel::onQueryChange
@@ -64,7 +61,6 @@ fun SearchScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Conteúdo consoante o estado actual
         when (val state = uiState) {
             is SearchUiState.Idle -> IdleContent()
             is SearchUiState.Loading -> LoadingContent()
@@ -95,10 +91,7 @@ private fun SearchBar(
         onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth(),
         placeholder = {
-            Text(
-                text = "Pesquisar filmes e séries...",
-                color = TextSecondary
-            )
+            Text(text = "Pesquisar filmes e séries...", color = TextSecondary)
         },
         leadingIcon = {
             Icon(
@@ -190,17 +183,12 @@ private fun ErrorContent(message: String) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = message,
-            color = Color(0xFFE17055),
-            fontSize = 16.sp
-        )
+        Text(text = message, color = ErrorRed, fontSize = 16.sp)
     }
 }
 
 /**
  * Grelha de resultados com 3 colunas, adequada para tablet.
- * Cada item mostra o poster, o título e o ano do filme ou série.
  *
  * @param results Lista de itens devolvidos pela API.
  * @param onItemClick Callback chamado quando o utilizador clica num item.
@@ -227,7 +215,6 @@ private fun ResultsGrid(
 
 /**
  * Cartão individual de um resultado de pesquisa.
- * Apresenta o poster do título, o nome e o ano de lançamento.
  *
  * @param item Dados do filme ou série.
  * @param onClick Callback chamado quando o utilizador clica no cartão.
@@ -243,14 +230,13 @@ private fun MediaItemCard(
             .background(CardBackground)
             .clickable(onClick = onClick)
     ) {
-        // Poster do filme/série carregado com Coil
         AsyncImage(
             model = "${TmdbClient.IMAGE_BASE_URL}${item.posterPath}",
             contentDescription = item.displayTitle,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(2f / 3f) // Proporção standard de poster de filme
+                .aspectRatio(2f / 3f)
         )
 
         Column(modifier = Modifier.padding(8.dp)) {

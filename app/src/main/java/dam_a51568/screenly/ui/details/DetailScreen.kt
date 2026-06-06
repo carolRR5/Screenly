@@ -1,6 +1,7 @@
 package dam_a51568.screenly.ui.details
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -21,13 +23,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.data.repository.WatchStatus
-
-// Cores da paleta da aplicação.
-private val BackgroundDark = Color(0xFF121829)
-private val CardBackground = Color(0xFF1A2236)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFF8F9CAE)
-private val BrandPurple = Color(0xFF6C5CE7)
+import dam_a51568.screenly.data.repository.WatchlistRepository
+import dam_a51568.screenly.ui.theme.BackgroundDark
+import dam_a51568.screenly.ui.theme.BrandPurple
+import dam_a51568.screenly.ui.theme.CardBackground
+import dam_a51568.screenly.ui.theme.ErrorRed
+import dam_a51568.screenly.ui.theme.TextPrimary
+import dam_a51568.screenly.ui.theme.TextSecondary
 
 /**
  * Ecrã de Detalhes da aplicação Screenly.
@@ -63,7 +65,6 @@ fun DetailScreen(
             .fillMaxSize()
             .background(BackgroundDark)
     ) {
-        // Barra de topo com botão de retroceder
         TopBar(onBack = onBack)
 
         when (val state = uiState) {
@@ -73,7 +74,12 @@ fun DetailScreen(
                 data = state.data,
                 watchStatus = watchStatus,
                 onAddToWatchlist = { status -> viewModel.addToWatchlist(state.data, status) },
-                onRemoveFromWatchlist = { viewModel.removeFromWatchlist(state.data.id, state.data.mediaType) }
+                onRemoveFromWatchlist = {
+                    viewModel.removeFromWatchlist(state.data.id, state.data.mediaType)
+                },
+                onSaveRatingAndReview = { rating, review ->
+                    viewModel.saveRatingAndReview(state.data.id, state.data.mediaType, rating, review)
+                }
             )
         }
     }
@@ -126,7 +132,7 @@ private fun ErrorContent(message: String) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = message, color = Color(0xFFE17055), fontSize = 16.sp)
+        Text(text = message, color = ErrorRed, fontSize = 16.sp)
     }
 }
 
@@ -141,14 +147,24 @@ private fun ErrorContent(message: String) {
  * @param watchStatus Estado atual do título na watchlist, ou null se não estiver adicionado.
  * @param onAddToWatchlist Callback para adicionar ou mover o título para um estado.
  * @param onRemoveFromWatchlist Callback para remover o título da watchlist.
+ * @param onSaveRatingAndReview Callback para guardar a classificação e a review.
  */
 @Composable
 private fun DetailContent(
     data: DetailUiData,
     watchStatus: WatchStatus?,
     onAddToWatchlist: (WatchStatus) -> Unit,
-    onRemoveFromWatchlist: () -> Unit
+    onRemoveFromWatchlist: () -> Unit,
+    onSaveRatingAndReview: (Float, String) -> Unit
 ) {
+    // Obtém o item atual da watchlist para ler o rating e a review já guardados
+    val currentItem = remember(watchStatus) {
+        if (watchStatus != null) {
+            WatchlistRepository.items
+                .firstOrNull { it.id == data.id && it.mediaType == data.mediaType }
+        } else null
+    }
+
     Row(
         modifier = Modifier
             .fillMaxSize()
@@ -166,7 +182,7 @@ private fun DetailContent(
                 .clip(RoundedCornerShape(16.dp))
         )
 
-        // Coluna direita — Informações e acções
+        // Coluna direita — Informações e ações
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -229,11 +245,14 @@ private fun DetailContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Secção de watchlist
+            // Secção de watchlist com avaliação e review
             WatchlistSection(
                 watchStatus = watchStatus,
+                currentRating = currentItem?.rating,
+                currentReview = currentItem?.review,
                 onAddToWatchlist = onAddToWatchlist,
-                onRemoveFromWatchlist = onRemoveFromWatchlist
+                onRemoveFromWatchlist = onRemoveFromWatchlist,
+                onSaveRatingAndReview = onSaveRatingAndReview
             )
         }
     }
@@ -241,21 +260,29 @@ private fun DetailContent(
 
 /**
  * Secção de gestão da watchlist no ecrã de detalhes.
- *
- * Se o título ainda não estiver na watchlist, apresenta três botões para o adicionar
- * a "To Watch", "Watching" ou "Watched".
- * Se já estiver adicionado, mostra o estado atual e um botão para remover.
+ * Quando o título está no estado WATCHED, apresenta também um sistema de
+ * classificação por estrelas e um campo de texto para review pessoal.
  *
  * @param watchStatus Estado atual do título na watchlist, ou null se não estiver adicionado.
+ * @param currentRating Classificação atual do título, ou null se não tiver sido atribuída.
+ * @param currentReview Review actual do título, ou null se não tiver sido escrita.
  * @param onAddToWatchlist Callback para adicionar o título com o estado especificado.
  * @param onRemoveFromWatchlist Callback para remover o título da watchlist.
+ * @param onSaveRatingAndReview Callback para guardar a classificação e a review.
  */
 @Composable
 private fun WatchlistSection(
     watchStatus: WatchStatus?,
+    currentRating: Float?,
+    currentReview: String?,
     onAddToWatchlist: (WatchStatus) -> Unit,
-    onRemoveFromWatchlist: () -> Unit
+    onRemoveFromWatchlist: () -> Unit,
+    onSaveRatingAndReview: (Float, String) -> Unit
 ) {
+    // Estado local para a classificação e review enquanto o utilizador edita
+    var selectedRating by remember(currentRating) { mutableFloatStateOf(currentRating ?: 0f) }
+    var reviewText by remember(currentReview) { mutableStateOf(currentReview ?: "") }
+
     Text(
         text = "A minha lista",
         color = TextPrimary,
@@ -265,51 +292,101 @@ private fun WatchlistSection(
 
     Spacer(modifier = Modifier.height(12.dp))
 
-    if (watchStatus == null) {
-        // Título ainda não está na watchlist — mostra os três botões de adição
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+        // Botões de estado das três listas
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             WatchlistButton(
                 label = "To Watch",
-                isSelected = false,
+                isSelected = watchStatus == WatchStatus.TO_WATCH,
                 onClick = { onAddToWatchlist(WatchStatus.TO_WATCH) }
             )
             WatchlistButton(
                 label = "Watching",
-                isSelected = false,
+                isSelected = watchStatus == WatchStatus.WATCHING,
                 onClick = { onAddToWatchlist(WatchStatus.WATCHING) }
             )
             WatchlistButton(
                 label = "Watched",
-                isSelected = false,
+                isSelected = watchStatus == WatchStatus.WATCHED,
                 onClick = { onAddToWatchlist(WatchStatus.WATCHED) }
             )
         }
-    } else {
-        // Título já está na watchlist — mostra o estado actual e opção de remover
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                WatchlistButton(
-                    label = "To Watch",
-                    isSelected = watchStatus == WatchStatus.TO_WATCH,
-                    onClick = { onAddToWatchlist(WatchStatus.TO_WATCH) }
+
+        // Secção de avaliação — apenas visível quando o título está em WATCHED
+        if (watchStatus == WatchStatus.WATCHED) {
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "A minha avaliação",
+                color = TextPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Sistema de 5 estrelas clicáveis
+            StarRatingBar(
+                rating = selectedRating,
+                onRatingChange = { selectedRating = it }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Campo de texto para a review pessoal
+            OutlinedTextField(
+                value = reviewText,
+                onValueChange = { reviewText = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text(
+                        text = "Escreve a tua review...",
+                        color = TextSecondary
+                    )
+                },
+                minLines = 3,
+                maxLines = 6,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    focusedBorderColor = BrandPurple,
+                    unfocusedBorderColor = TextSecondary,
+                    cursorColor = BrandPurple,
+                    focusedContainerColor = CardBackground,
+                    unfocusedContainerColor = CardBackground
                 )
-                WatchlistButton(
-                    label = "Watching",
-                    isSelected = watchStatus == WatchStatus.WATCHING,
-                    onClick = { onAddToWatchlist(WatchStatus.WATCHING) }
-                )
-                WatchlistButton(
-                    label = "Watched",
-                    isSelected = watchStatus == WatchStatus.WATCHED,
-                    onClick = { onAddToWatchlist(WatchStatus.WATCHED) }
-                )
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Botão para guardar a avaliação e a review
+            // Apenas ativo se o utilizador tiver selecionado pelo menos uma estrela
+            Button(
+                onClick = { onSaveRatingAndReview(selectedRating, reviewText) },
+                enabled = selectedRating > 0f,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = BrandPurple,
+                    contentColor = TextPrimary,
+                    disabledContainerColor = CardBackground,
+                    disabledContentColor = TextSecondary
+                ),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = "Guardar avaliação")
             }
-            // Botão de remoção
+        }
+
+        // Botão de remoção — apenas visível se o título já estiver na watchlist
+        if (watchStatus != null) {
             OutlinedButton(
                 onClick = onRemoveFromWatchlist,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFE17055)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed),
                 border = ButtonDefaults.outlinedButtonBorder.copy(
-                    brush = androidx.compose.ui.graphics.SolidColor(Color(0xFFE17055))
+                    brush = SolidColor(ErrorRed)
                 )
             ) {
                 Text(text = "Remover da lista")
@@ -319,11 +396,38 @@ private fun WatchlistSection(
 }
 
 /**
+ * Sistema de classificação por estrelas.
+ * Apresenta 5 estrelas clicáveis — a estrela clicada define a classificação (1 a 5).
+ * A estrela ativa é preenchida com a cor da marca; as inativas ficam a cinzento.
+ *
+ * @param rating Classificação atual (0f se ainda não foi atribuída).
+ * @param onRatingChange Callback chamado quando o utilizador clica numa estrela.
+ */
+@Composable
+private fun StarRatingBar(
+    rating: Float,
+    onRatingChange: (Float) -> Unit
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        (1..5).forEach { star ->
+            Text(
+                text = if (star <= rating) "★" else "☆",
+                fontSize = 32.sp,
+                color = if (star <= rating) BrandPurple else TextSecondary,
+                modifier = Modifier.clickable {
+                    onRatingChange(star.toFloat())
+                }
+            )
+        }
+    }
+}
+
+/**
  * Botão individual de estado da watchlist.
- * Quando selecionado, apresenta fundo preenchido; caso contrário, apresenta contorno.
+ * Quando selccionado, apresenta fundo preenchido; caso contrário, apresenta contorno.
  *
  * @param label Texto do botão ("To Watch", "Watching" ou "Watched").
- * @param isSelected Indica se este estado está actualmente seleccionado.
+ * @param isSelected Indica se este estado está atualmente selecionado.
  * @param onClick Callback chamado ao clicar no botão.
  */
 @Composable

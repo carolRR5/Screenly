@@ -140,4 +140,17 @@ class DetailViewModel : ViewModel() {
         WatchlistRepository.remove(id, mediaType)
         _watchStatus.value = null
     }
+
+    /**
+     * Guarda a classificação e a review pessoal de um título no repositório.
+     * Apenas chamado para títulos com estado [WatchStatus.WATCHED].
+     *
+     * @param id Identificador único do título no TMDb.
+     * @param mediaType Tipo de conteúdo: "movie" ou "tv".
+     * @param rating Classificação atribuída pelo utilizador (1.0 a 5.0).
+     * @param review Nota pessoal escrita pelo utilizador.
+     */
+    fun saveRatingAndReview(id: Int, mediaType: String, rating: Float, review: String) {
+        WatchlistRepository.updateRatingAndReview(id, mediaType, rating, review)
+    }
 }
