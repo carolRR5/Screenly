@@ -8,6 +8,49 @@ data class TmdbSearchResponse(
 )
 
 /**
+ * Representa a resposta da API ao endpoint de créditos de um filme ou série.
+ * Contém separadamente o elenco (atores) e a crew (equipa técnica).
+ */
+data class TmdbCreditsResponse(
+    @SerializedName("cast") val cast: List<TmdbCastMember>,
+    @SerializedName("crew") val crew: List<TmdbCrewMember>
+)
+
+/**
+ * Representa um actor ou atriz no elenco de um título.
+ *
+ * @param id Identificador único do actor no TMDb.
+ * @param name Nome real do actor.
+ * @param character Personagem que interpreta no título.
+ * @param profilePath Caminho da foto de perfil do actor (pode ser null).
+ * @param order Ordem de importância no elenco (0 = protagonista).
+ */
+data class TmdbCastMember(
+    @SerializedName("id") val id: Int,
+    @SerializedName("name") val name: String,
+    @SerializedName("character") val character: String,
+    @SerializedName("profile_path") val profilePath: String?,
+    @SerializedName("order") val order: Int
+)
+
+/**
+ * Representa um membro da equipa técnica de um título.
+ *
+ * @param id Identificador único do membro no TMDb.
+ * @param name Nome do membro da crew.
+ * @param job Função desempenhada (ex: "Diretor", "Producer").
+ * @param department Departamento a que pertence (ex: "Directing", "Production").
+ * @param profilePath Caminho da foto de perfil (pode ser null).
+ */
+data class TmdbCrewMember(
+    @SerializedName("id") val id: Int,
+    @SerializedName("name") val name: String,
+    @SerializedName("job") val job: String,
+    @SerializedName("department") val department: String,
+    @SerializedName("profile_path") val profilePath: String?
+)
+
+/**
  * Representa um item individual (filme ou série) devolvido pela pesquisa.
  * A API do TMDb utiliza campos diferentes consoante o tipo de conteúdo:
  * - Para filmes é usado "title" e "release_date"

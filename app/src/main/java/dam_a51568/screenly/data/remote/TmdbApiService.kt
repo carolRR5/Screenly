@@ -1,5 +1,6 @@
 package dam_a51568.screenly.data.remote
 
+import dam_a51568.screenly.data.models.TmdbCreditsResponse
 import dam_a51568.screenly.data.models.TmdbMovieDetails
 import dam_a51568.screenly.data.models.TmdbSearchResponse
 import dam_a51568.screenly.data.models.TmdbTvShowDetails
@@ -98,4 +99,36 @@ interface TmdbApiService {
         @Query("api_key") apiKey: String,
         @Query("language") language: String = "pt-PT"
     ): TmdbSearchResponse
+
+    /**
+     * Obtém o elenco e a crew de um filme.
+     * Endpoint: GET /movie/{id}/credits
+     *
+     * @param id Identificador único do filme no TMDb.
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @return Objecto com listas de elenco e crew.
+     */
+    @GET("movie/{id}/credits")
+    suspend fun getMovieCredits(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbCreditsResponse
+
+    /**
+     * Obtém o elenco e a crew de uma série.
+     * Endpoint: GET /tv/{id}/credits
+     *
+     * @param id Identificador único da série no TMDb.
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @return Objecto com listas de elenco e crew.
+     */
+    @GET("tv/{id}/credits")
+    suspend fun getTvCredits(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbCreditsResponse
 }
