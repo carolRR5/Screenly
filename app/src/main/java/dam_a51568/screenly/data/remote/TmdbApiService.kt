@@ -70,4 +70,32 @@ interface TmdbApiService {
         @Query("api_key") apiKey: String,
         @Query("language") language: String = "pt-PT"
     ): TmdbSearchResponse
+
+    /**
+     * Obtém os filmes mais populares atualmente.
+     * Endpoint: GET /movie/popular
+     *
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados (por defeito português de Portugal).
+     * @return Lista de filmes populares.
+     */
+    @GET("movie/popular")
+    suspend fun getPopularMovies(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbSearchResponse
+
+    /**
+     * Obtém as séries mais populares atualmente.
+     * Endpoint: GET /tv/popular
+     *
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados (por defeito português de Portugal).
+     * @return Lista de séries populares.
+     */
+    @GET("tv/popular")
+    suspend fun getPopularTvShows(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbSearchResponse
 }

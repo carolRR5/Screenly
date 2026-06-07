@@ -3,10 +3,14 @@ package dam_a51568.screenly.ui.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,15 +31,17 @@ import dam_a51568.screenly.ui.theme.CardBackground
 import dam_a51568.screenly.ui.theme.ErrorRed
 import dam_a51568.screenly.ui.theme.TextPrimary
 import dam_a51568.screenly.ui.theme.TextSecondary
+import kotlin.math.ceil
 
 /**
  * Ecrã principal da aplicação Screenly.
  *
- * Apresenta os títulos em tendência da semana obtidos da API do TMDb,
- * numa grelha de 3 colunas adequada para tablet.
+ * Apresenta três secções de conteúdo carregadas da API do TMDb:
+ * - Tendências da semana: grelha de 3 colunas
+ * - Filmes populares: lista horizontal com scroll
+ * - Séries populares: lista horizontal com scroll
  *
- * @param onItemClick Callback chamado quando o utilizador clica num título,
- *                    recebendo o id e o mediaType do item seleccionado.
+ * @param onItemClick Callback chamado quando o utilizador clica num título.
  * @param viewModel ViewModel que gere o estado do ecrã.
  */
 @Composable
@@ -45,46 +51,25 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundDark)
-            .padding(16.dp)
-    ) {
-        // Cabeçalho do ecrã
-        Text(
-            text = "Em Tendência",
-            color = TextPrimary,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 4.dp)
+    when (val state = uiState) {
+        is HomeUiState.Loading -> LoadingContent()
+        is HomeUiState.Error -> ErrorContent(message = state.message)
+        is HomeUiState.Success -> HomeContent(
+            data = state.data,
+            onItemClick = onItemClick
         )
-        Text(
-            text = "Os títulos mais populares desta semana",
-            color = TextSecondary,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        // Conteúdo consoante o estado actual
-        when (val state = uiState) {
-            is HomeUiState.Loading -> LoadingContent()
-            is HomeUiState.Error -> ErrorContent(message = state.message)
-            is HomeUiState.Success -> TrendingGrid(
-                results = state.results,
-                onItemClick = onItemClick
-            )
-        }
     }
 }
 
 /**
- * Indicador de carregamento apresentado enquanto os dados estão a ser obtidos da API.
+ * Indicador de carregamento apresentado enquanto os dados estão a ser obtidos.
  */
 @Composable
 private fun LoadingContent() {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundDark),
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator(color = BrandPurple)
@@ -92,14 +77,16 @@ private fun LoadingContent() {
 }
 
 /**
- * Conteúdo apresentado quando ocorre um erro ao carregar os títulos em tendência.
+ * Conteúdo apresentado quando ocorre um erro ao carregar os dados.
  *
  * @param message Mensagem de erro a apresentar ao utilizador.
  */
 @Composable
 private fun ErrorContent(message: String) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundDark),
         contentAlignment = Alignment.Center
     ) {
         Text(text = message, color = ErrorRed, fontSize = 16.sp)
@@ -107,21 +94,97 @@ private fun ErrorContent(message: String) {
 }
 
 /**
- * Grelha de títulos em tendência com 3 colunas, adequada para tablet.
+ * Conteúdo principal do ecrã de Início com as três secções.
+ * Usa um [Column] com scroll vertical para permitir navegar entre as secções.
  *
- * @param results Lista de títulos em tendência devolvidos pela API.
- * @param onItemClick Callback chamado quando o utilizador clica num item.
+ * @param data Dados das três secções carregados da API.
+ * @param onItemClick Callback chamado quando o utilizador clica num título.
+ */
+@Composable
+private fun HomeContent(
+    data: HomeData,
+    onItemClick: (id: Int, mediaType: String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundDark)
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 16.dp)
+    ) {
+        // Secção 1 — Tendências da semana (grelha de 3 colunas)
+        SectionHeader(title = "Em Tendência Esta Semana")
+        Spacer(modifier = Modifier.height(12.dp))
+        TrendingGrid(
+            results = data.trending,
+            onItemClick = onItemClick
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Secção 2 — Filmes populares (scroll horizontal)
+        SectionHeader(title = "Filmes Populares")
+        Spacer(modifier = Modifier.height(12.dp))
+        HorizontalMediaRow(
+            items = data.popularMovies,
+            onItemClick = { item -> onItemClick(item.id, "movie") }
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Secção 3 — Séries populares (scroll horizontal)
+        SectionHeader(title = "Séries Populares")
+        Spacer(modifier = Modifier.height(12.dp))
+        HorizontalMediaRow(
+            items = data.popularTvShows,
+            onItemClick = { item -> onItemClick(item.id, "tv") }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+/**
+ * Cabeçalho de uma secção do ecrã de Início.
+ *
+ * @param title Título da secção.
+ */
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        color = TextPrimary,
+        fontSize = 20.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = 16.dp)
+    )
+}
+
+/**
+ * Grelha de 3 colunas para os títulos em tendência.
+ * Usa [LazyVerticalGrid] com altura fixa para funcionar dentro
+ * do [Column] com scroll vertical.
+ *
+ * @param results Lista de títulos em tendência.
+ * @param onItemClick Callback chamado ao clicar num item.
  */
 @Composable
 private fun TrendingGrid(
     results: List<TmdbMediaItem>,
     onItemClick: (id: Int, mediaType: String) -> Unit
 ) {
+    // Altura fixa necessária porque a grelha está num Column com scroll
+    val itemHeight = 235.dp
+    val rows = ceil(results.size / 3.0).toInt()
+    val gridHeight = (itemHeight * rows) + (12.dp * (rows - 1))
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(bottom = 16.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        modifier = Modifier.height(gridHeight),
+        userScrollEnabled = false // O scroll é feito pelo Column exterior
     ) {
         items(results) { item ->
             TrendingItemCard(
@@ -133,12 +196,82 @@ private fun TrendingGrid(
 }
 
 /**
- * Cartão individual de um título em tendência.
- * Apresenta o poster, o título, o ano e uma etiqueta indicando
- * se é um filme ou uma série.
+ * Lista horizontal com scroll para filmes ou séries populares.
+ *
+ * @param items Lista de títulos a apresentar.
+ * @param onItemClick Callback chamado ao clicar num item.
+ */
+@Composable
+private fun HorizontalMediaRow(
+    items: List<TmdbMediaItem>,
+    onItemClick: (TmdbMediaItem) -> Unit
+) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp)
+    ) {
+        items(items) { item ->
+            HorizontalMediaCard(
+                item = item,
+                onClick = { onItemClick(item) }
+            )
+        }
+    }
+}
+
+/**
+ * Cartão individual para a lista horizontal.
+ * Tem largura fixa de 140dp para manter consistência visual.
  *
  * @param item Dados do filme ou série.
- * @param onClick Callback chamado quando o utilizador clica no cartão.
+ * @param onClick Callback chamado ao clicar no cartão.
+ */
+@Composable
+private fun HorizontalMediaCard(
+    item: TmdbMediaItem,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(140.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(CardBackground)
+            .clickable(onClick = onClick)
+    ) {
+        AsyncImage(
+            model = "${TmdbClient.IMAGE_BASE_URL}${item.posterPath}",
+            contentDescription = item.displayTitle,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(2f / 3f)
+        )
+
+        Column(modifier = Modifier.padding(8.dp)) {
+            Text(
+                text = item.displayTitle,
+                color = TextPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = item.displayYear,
+                color = TextSecondary,
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+/**
+ * Cartão individual para a grelha de tendências.
+ * Apresenta o póster com uma etiqueta a indicar se é filme ou série.
+ *
+ * @param item Dados do filme ou série.
+ * @param onClick Callback chamado ao clicar no cartão.
  */
 @Composable
 private fun TrendingItemCard(
@@ -151,7 +284,6 @@ private fun TrendingItemCard(
             .background(CardBackground)
             .clickable(onClick = onClick)
     ) {
-        // Poster com etiqueta de tipo (Filme/Série) sobreposta
         Box {
             AsyncImage(
                 model = "${TmdbClient.IMAGE_BASE_URL}${item.posterPath}",
@@ -162,7 +294,7 @@ private fun TrendingItemCard(
                     .aspectRatio(2f / 3f)
             )
 
-            // Etiqueta no canto superior esquerdo a indicar o tipo de conteúdo
+            // Etiqueta no canto superior esquerdo
             Surface(
                 modifier = Modifier
                     .padding(6.dp)
@@ -180,7 +312,6 @@ private fun TrendingItemCard(
             }
         }
 
-        // Informações do título
         Column(modifier = Modifier.padding(8.dp)) {
             Text(
                 text = item.displayTitle,

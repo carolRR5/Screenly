@@ -4,25 +4,42 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dam_a51568.screenly.data.models.TmdbMediaItem
 import dam_a51568.screenly.data.remote.TmdbClient
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * Representa os dados carregados para o ecrã de Início.
+ * Contém três listas independentes — tendências, filmes e séries populares.
+ *
+ * @param trending Títulos em tendência da semana (filmes e séries).
+ * @param popularMovies Filmes mais populares atualmente.
+ * @param popularTvShows Séries mais populares atualmente.
+ */
+data class HomeData(
+    val trending: List<TmdbMediaItem>,
+    val popularMovies: List<TmdbMediaItem>,
+    val popularTvShows: List<TmdbMediaItem>
+)
+
 // Estados possíveis do ecrã de Início
 sealed class HomeUiState {
-    // A carregar os títulos em tendência.
+    // A carregar os dados das três secções.
     data object Loading : HomeUiState()
-    // Erro ao carregar os títulos.
+    // Erro ao carregar os dados.
     data class Error(val message: String) : HomeUiState()
-    // Títulos carregados com sucesso.
-    data class Success(val results: List<TmdbMediaItem>) : HomeUiState()
+    // Dados carregados com sucesso.
+    data class Success(val data: HomeData) : HomeUiState()
 }
 
 /**
  * ViewModel do ecrã de Início.
- * Carrega os títulos em tendência da semana a partir da API do TMDb
- * assim que é inicializado.
+ *
+ * Carrega em paralelo os títulos em tendência, os filmes populares
+ * e as séries populares a partir da API do TMDb, usando [async] para
+ * otimizar o tempo de carregamento.
  */
 class HomeViewModel : ViewModel() {
 
@@ -30,26 +47,49 @@ class HomeViewModel : ViewModel() {
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     init {
-        loadTrending()
+        loadHomeData()
     }
 
     /**
-     * Carrega os títulos em tendência da semana a partir do endpoint /trending/all/week.
-     * Filtra resultados sem poster ou sem media_type válido ("movie" ou "tv").
+     * Carrega as três listas em paralelo usando coroutines.
+     * Usa [async] para que os três pedidos sejam feitos simultaneamente,
+     * reduzindo o tempo total de carregamento.
      */
-    private fun loadTrending() {
+    private fun loadHomeData() {
         viewModelScope.launch {
             _uiState.value = HomeUiState.Loading
             try {
-                val response = TmdbClient.apiService.getTrending(
-                    apiKey = TmdbClient.API_KEY
-                )
-                val filtered = response.results.filter {
+                // Os três pedidos são feitos em paralelo
+                val trendingDeferred = async {
+                    TmdbClient.apiService.getTrending(apiKey = TmdbClient.API_KEY)
+                }
+                val moviesDeferred = async {
+                    TmdbClient.apiService.getPopularMovies(apiKey = TmdbClient.API_KEY)
+                }
+                val tvDeferred = async {
+                    TmdbClient.apiService.getPopularTvShows(apiKey = TmdbClient.API_KEY)
+                }
+
+                // Aguarda os três resultados
+                val trending = trendingDeferred.await().results.filter {
                     it.mediaType in listOf("movie", "tv") && it.posterPath != null
                 }
-                _uiState.value = HomeUiState.Success(filtered)
+                val movies = moviesDeferred.await().results.filter {
+                    it.posterPath != null
+                }
+                val tvShows = tvDeferred.await().results.filter {
+                    it.posterPath != null
+                }
+
+                _uiState.value = HomeUiState.Success(
+                    HomeData(
+                        trending = trending,
+                        popularMovies = movies,
+                        popularTvShows = tvShows
+                    )
+                )
             } catch (e: Exception) {
-                _uiState.value = HomeUiState.Error("Erro ao carregar tendências. Verifique a ligação.")
+                _uiState.value = HomeUiState.Error("Erro ao carregar conteúdos. Verifique a ligação.")
             }
         }
     }
