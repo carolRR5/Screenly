@@ -57,4 +57,17 @@ interface TmdbApiService {
         @Query("api_key") apiKey: String,
         @Query("language") language: String = "pt-PT"
     ): TmdbTvShowDetails
+
+    /**
+     * Obtém os títulos em tendência da semana (filmes e séries).
+     *
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados (por defeito português de Portugal).
+     * @return Lista de filmes e séries em tendência.
+     */
+    @GET("trending/all/week")
+    suspend fun getTrending(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbSearchResponse
 }
