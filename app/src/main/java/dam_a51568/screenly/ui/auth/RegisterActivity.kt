@@ -8,22 +8,25 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import com.google.firebase.auth.UserProfileChangeRequest
 import dam_a51568.screenly.MainActivity
 import dam_a51568.screenly.databinding.ActivityRegisterBinding
 
 /**
- * Activity responsável pelo ecrã de Registo da aplicação.
+ * Activity responsável pelo ecrã de Registo da aplicação Screenly.
  *
- * Permite que novos utilizadores criem uma conta com email e palavra-passe através do Firebase
- * Authentication. Após o registo com sucesso, o utilizador é redirecionado para a MainActivity, entrando
- * diretamente na aplicação sem necessidade de fazer login separadamente.
+ * Permite que novos utilizadores criem uma conta com nome, email e palavra-passe
+ * através do Firebase Authentication. Após o registo com sucesso, guarda o nome
+ * do utilizador no perfil do Firebase Auth e redireciona para a [MainActivity].
  *
- * Esta Activity é iniciada a partir da LoginActivity quando o utilizador clica em "Não tem conta? Registe-se aqui".
+ * O layout é definido em XML (activity_register.xml) e acedido via View Binding.
  */
 class RegisterActivity : AppCompatActivity() {
-    // View Biding que dá acesso às views do layout activity_register.xml
+
+    /** View Binding que dá acesso às views do layout activity_register.xml. */
     private lateinit var binding: ActivityRegisterBinding
-    // Instância do Firebase Authentication para criar a conta do novo utilizador
+
+    /** Instância do Firebase Authentication para criar a conta do novo utilizador. */
     private lateinit var auth: FirebaseAuth
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,7 +34,6 @@ class RegisterActivity : AppCompatActivity() {
 
         auth = FirebaseAuth.getInstance()
 
-        // Carrega o layout XML via View Biding e define-o como o conteúdo desta Activity
         binding = ActivityRegisterBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -39,45 +41,57 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     /**
-     * Configura os listeners de clique para os elementos interativos do ecrã:
+     * Configura os listeners de clique para os elementos interactivos do ecrã:
      * - Botão "Criar conta": valida os campos e tenta registar o utilizador.
-     * - Texto "Já tem Conta?": fecha este ecrã e volta ao Login através do finish, reutilizando
-     * a instância da LoginActivity.
+     * - Texto "Já tem conta?": fecha este ecrã e volta ao Login.
      */
     private fun setupClickListeners() {
-        // Botão de Registo
         binding.buttonRegister.setOnClickListener {
+            val name = binding.editTextName.text.toString().trim()
             val email = binding.editTextEmail.text.toString().trim()
             val password = binding.editTextPassword.text.toString()
             val confirmPassword = binding.editTextConfirmPassword.text.toString()
 
-            if (validateInputs(email, password, confirmPassword)) {
-                performRegister(email, password)
+            if (validateInputs(name, email, password, confirmPassword)) {
+                performRegister(name, email, password)
             }
         }
 
-        // Usa finish() em vez de startActivity() para evitar criar uma nova instância do Login
+        // Usa finish() para voltar ao Login sem criar uma nova instância
         binding.textViewGoToLogin.setOnClickListener {
-            finish() // Simplesmente fecha o ecrã de Registo e volta ao Login
+            finish()
         }
     }
 
     /**
-     * Valida todos os campos do formulário de registo antes de enviar o pedido ao Firebase.
-     * Os erros são apresentados diretamente nos TextInputLayout correspondentes, por baixo de cada campo.
+     * Valida todos os campos do formulário de registo.
      *
      * Regras de validação:
-     * - Email não pode estar vazio e deve ter um formato válido, ou seja, por exemplo, nome@dominio.com
-     * - Palavra-passe não pode estar vazia e deve ter pelo menos 6 caracteres.
-     * - Confirmação da palavra-passe deve ser idêntica à palavra-passe introduzida.
+     * - Nome não pode estar vazio
+     * - Email não pode estar vazio e deve ter formato válido
+     * - Palavra-passe não pode estar vazia e deve ter pelo menos 6 caracteres
+     * - Confirmação deve ser idêntica à palavra-passe
      *
-     * @param email Texto introduzido no campo de email.
-     * @param password Texto introduzido no campo de palavra-passe.
-     * @param confirmPassword Texto introduzido no campo de confirmação de palavra-passe.
-     * @return 'true' se todos os campos são válidos, 'false' caso contrário.
+     * @param name Nome introduzido pelo utilizador.
+     * @param email Email introduzido pelo utilizador.
+     * @param password Palavra-passe introduzida pelo utilizador.
+     * @param confirmPassword Confirmação da palavra-passe.
+     * @return `true` se todos os campos são válidos, `false` caso contrário.
      */
-    private fun validateInputs(email: String, password: String, confirmPassword: String): Boolean {
+    private fun validateInputs(
+        name: String,
+        email: String,
+        password: String,
+        confirmPassword: String
+    ): Boolean {
         var isValid = true
+
+        if (name.isEmpty()) {
+            binding.textInputName.error = "O nome não pode estar vazio"
+            isValid = false
+        } else {
+            binding.textInputName.error = null
+        }
 
         if (email.isEmpty()) {
             binding.textInputEmail.error = "O email não pode estar vazio"
@@ -86,7 +100,6 @@ class RegisterActivity : AppCompatActivity() {
             binding.textInputEmail.error = "Introduza um email válido"
             isValid = false
         } else {
-            // Limpa o erro caso o campo tenha sido corrigido pelo utilizador
             binding.textInputEmail.error = null
         }
 
@@ -114,30 +127,40 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     /**
-     * Cria um nova conta via Firebase Auth com email e palavra-passe.
+     * Cria uma nova conta via Firebase Auth e guarda o nome do utilizador.
      *
-     * Durante o processo, desativa o botão e mostra um ProgressBar para indicar que a operação está
-     * em curso e, também para evitar cliques duplicados.
+     * O processo tem dois passos:
+     * 1. Criar a conta com email e palavra-passe
+     * 2. Actualizar o perfil do Firebase Auth com o nome introduzido
      *
-     * Em caso de sucesso, vai diretamente para a MainActivity sem necessidade de login adicional, pois
-     * o Firebase Auth já cria e inicia a sessão automaticamente.
+     * Em caso de sucesso, navega para a [MainActivity].
+     * Em caso de erro, apresenta uma mensagem específica ao utilizador.
      *
-     * Em caso de erro, apresenta uma mensagem específica ao utilizador consoante o tipo de exceção
-     * devolvida pelo Firebase:
-     * - FirebaseAuthUserCollisionException: já existe uma conta com este email.
-     * - FirebaseAuthWeakPasswordException: palavra-passe demasiado fraca.
-     * - Outros erros genéricos.
-     *
+     * @param name Nome do utilizador a guardar no perfil do Firebase Auth.
      * @param email Email introduzido pelo utilizador.
      * @param password Palavra-passe introduzida pelo utilizador.
      */
-    private fun performRegister(email: String, password: String) {
+    private fun performRegister(name: String, email: String, password: String) {
         setLoading(true)
 
         auth.createUserWithEmailAndPassword(email, password)
-            .addOnSuccessListener {
-                setLoading(false)
-                navigateToMain()
+            .addOnSuccessListener { authResult ->
+                // Guarda o nome no perfil do Firebase Auth
+                val profileUpdates = UserProfileChangeRequest.Builder()
+                    .setDisplayName(name)
+                    .build()
+
+                authResult.user?.updateProfile(profileUpdates)
+                    ?.addOnSuccessListener {
+                        setLoading(false)
+                        navigateToMain()
+                    }
+                    ?.addOnFailureListener {
+                        // Mesmo que falhe a actualizar o nome, o registo foi bem-sucedido
+                        // por isso navega para a MainActivity na mesma
+                        setLoading(false)
+                        navigateToMain()
+                    }
             }
             .addOnFailureListener { exception ->
                 setLoading(false)
@@ -153,11 +176,9 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     /**
-     * Controla o estado de carregamento da Ui durante o registo.
-     * Quando está a carregar, mostra a ProgressBar e desativa o botão para evitar que o utilizador
-     * submeta o formulário várias vezes.
+     * Controla o estado de carregamento da UI durante o registo.
      *
-     * @param isLoading 'true' para ativar o estado de carregamento, 'false' para desativar.
+     * @param isLoading `true` para activar o estado de carregamento, `false` para desactivar.
      */
     private fun setLoading(isLoading: Boolean) {
         binding.progressBarRegister.visibility = if (isLoading) View.VISIBLE else View.GONE
@@ -165,11 +186,8 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     /**
-     * Navega para a MainActivity após registo bem-sucedido.
-     *
-     * As flags Intent.FLAG_ACTIVITY_NEW_TASK e Intent.FLAG_ACTIVITY_CLEAR_TASK limpam corretamente a
-     * back stack, garantindo que o utilizador não consegue voltar ao ecrã de Registo ou de Login ao
-     * carregar no botão "Trás" do dispositivo.
+     * Navega para a [MainActivity] após registo bem-sucedido.
+     * Limpa a back stack para que o utilizador não volte ao Registo.
      */
     private fun navigateToMain() {
         val intent = Intent(this, MainActivity::class.java).apply {

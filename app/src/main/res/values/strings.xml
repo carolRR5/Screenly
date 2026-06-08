@@ -11,6 +11,7 @@
     <string name="login_go_to_register">Não tem conta? Registe-se aqui</string>
 
     <!-- Registo -->
+    <string name="register_hint_name">Nome</string>
     <string name="register_title">Criar conta</string>
     <string name="register_subtitle">Comece a gerir o seu catálogo pessoal</string>
     <string name="register_hint_email">Email</string>
