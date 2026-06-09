@@ -16,8 +16,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import dam_a51568.screenly.data.repository.WatchStatus
 import dam_a51568.screenly.ui.details.DetailScreen
 import dam_a51568.screenly.ui.home.HomeScreen
+import dam_a51568.screenly.ui.lists.ListsScreen
 import dam_a51568.screenly.ui.profile.ProfileScreen
 import dam_a51568.screenly.ui.search.SearchScreen
 import dam_a51568.screenly.ui.theme.BackgroundDark
@@ -39,6 +41,12 @@ sealed class Screen(val route: String) {
     data object Detail : Screen("detail/{id}/{mediaType}") {
         fun createRoute(id: Int, mediaType: String) = "detail/$id/$mediaType"
     }
+    /** Ecrã de listas do utilizador — recebe o estado inicial do separador. */
+    data object Lists : Screen("lists/{status}") {
+        fun createRoute(status: WatchStatus) = "lists/${status.name}"
+    }
+    /** Ecrã de definições do utilizador. */
+    data object Settings : Screen("settings")
 }
 
 /**
@@ -99,11 +107,10 @@ fun ScreenlyApp() {
         )
     )
 
-    // Rotas onde a Bottom Bar não deve aparecer (ex: ecrã de detalhes)
-    val routesWithoutBottomBar = listOf(Screen.Detail.route)
-    val showBottomBar = routesWithoutBottomBar.none {
-        currentRoute?.startsWith("detail") == true
-    }
+    // A Bottom Bar não aparece nos ecrãs de detalhes, listas e definições
+    val showBottomBar = currentRoute?.startsWith("detail") == false &&
+            currentRoute?.startsWith("lists") == false &&
+            currentRoute != Screen.Settings.route
 
     Scaffold(
         containerColor = BackgroundDark,
@@ -151,7 +158,41 @@ fun ScreenlyApp() {
 
             // Ecrã de Perfil
             composable(Screen.Profile.route) {
-                ProfileScreen()
+                ProfileScreen(
+                    onNavigateToSettings = {
+                        navController.navigate(Screen.Settings.route)
+                    },
+                    onNavigateToLists = { status ->
+                        navController.navigate(Screen.Lists.createRoute(status))
+                    },
+                    onItemClick = { id, mediaType ->
+                        navController.navigate(Screen.Detail.createRoute(id, mediaType))
+                    }
+                )
+            }
+
+            // Ecrã de Listas, abre no separador correspondente à lista selecionada
+            composable(
+                route = Screen.Lists.route,
+                arguments = listOf(
+                    navArgument("status") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val statusName = backStackEntry.arguments?.getString("status")
+                    ?: WatchStatus.TO_WATCH.name
+                val status = WatchStatus.valueOf(statusName)
+                ListsScreen(
+                    initialStatus = status,
+                    onBack = { navController.popBackStack() },
+                    onItemClick = { id, mediaType ->
+                        navController.navigate(Screen.Detail.createRoute(id, mediaType))
+                    }
+                )
+            }
+
+            // Ecrã de Definições
+            composable(Screen.Settings.route) {
+                // Por implementar
             }
 
             // Ecrã de Detalhes — recebe id (Int) e mediaType (String) como argumentos
@@ -163,7 +204,8 @@ fun ScreenlyApp() {
                 )
             ) { backStackEntry ->
                 val id = backStackEntry.arguments?.getInt("id") ?: return@composable
-                val mediaType = backStackEntry.arguments?.getString("mediaType") ?: return@composable
+                val mediaType = backStackEntry.arguments?.getString("mediaType")
+                    ?: return@composable
                 DetailScreen(
                     id = id,
                     mediaType = mediaType,

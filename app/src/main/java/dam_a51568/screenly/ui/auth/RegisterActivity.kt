@@ -41,7 +41,7 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     /**
-     * Configura os listeners de clique para os elementos interactivos do ecrã:
+     * Configura os listeners de clique para os elementos interativos do ecrã:
      * - Botão "Criar conta": valida os campos e tenta registar o utilizador.
      * - Texto "Já tem conta?": fecha este ecrã e volta ao Login.
      */
@@ -131,7 +131,7 @@ class RegisterActivity : AppCompatActivity() {
      *
      * O processo tem dois passos:
      * 1. Criar a conta com email e palavra-passe
-     * 2. Actualizar o perfil do Firebase Auth com o nome introduzido
+     * 2. Atualizar o perfil do Firebase Auth com o nome introduzido
      *
      * Em caso de sucesso, navega para a [MainActivity].
      * Em caso de erro, apresenta uma mensagem específica ao utilizador.
@@ -178,7 +178,7 @@ class RegisterActivity : AppCompatActivity() {
     /**
      * Controla o estado de carregamento da UI durante o registo.
      *
-     * @param isLoading `true` para activar o estado de carregamento, `false` para desactivar.
+     * @param isLoading `true` para ativar o estado de carregamento, `false` para desativar.
      */
     private fun setLoading(isLoading: Boolean) {
         binding.progressBarRegister.visibility = if (isLoading) View.VISIBLE else View.GONE
