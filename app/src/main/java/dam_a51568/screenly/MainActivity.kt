@@ -22,6 +22,7 @@ import dam_a51568.screenly.ui.home.HomeScreen
 import dam_a51568.screenly.ui.lists.ListsScreen
 import dam_a51568.screenly.ui.profile.ProfileScreen
 import dam_a51568.screenly.ui.search.SearchScreen
+import dam_a51568.screenly.ui.settings.SettingsScreen
 import dam_a51568.screenly.ui.theme.BackgroundDark
 import dam_a51568.screenly.ui.theme.BrandPurple
 import dam_a51568.screenly.ui.theme.TextSecondary
@@ -192,10 +193,24 @@ fun ScreenlyApp() {
 
             // Ecrã de Definições
             composable(Screen.Settings.route) {
-                // Por implementar
+                val context = androidx.compose.ui.platform.LocalContext.current
+                SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onLogout = {
+                        // Navega para a LoginActivity e limpa toda a back stack
+                        val intent = android.content.Intent(
+                            context,
+                            dam_a51568.screenly.ui.auth.LoginActivity::class.java
+                        ).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                                    android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        }
+                        context.startActivity(intent)
+                    }
+                )
             }
 
-            // Ecrã de Detalhes — recebe id (Int) e mediaType (String) como argumentos
+            // Ecrã de Detalhes, recebe id (Int) e mediaType (String) como argumentos
             composable(
                 route = Screen.Detail.route,
                 arguments = listOf(
@@ -221,7 +236,7 @@ fun ScreenlyApp() {
  * Apresenta três separadores: Início, Pesquisa e Perfil.
  *
  * @param items Lista de itens a apresentar na barra.
- * @param currentRoute Rota actual do NavController, usada para destacar o separador activo.
+ * @param currentRoute Rota actual do NavController, usada para destacar o separador ativo.
  * @param onItemClick Callback chamado quando o utilizador clica num separador.
  */
 @Composable
