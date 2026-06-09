@@ -1,6 +1,7 @@
 package dam_a51568.screenly.data.remote
 
 import dam_a51568.screenly.data.models.TmdbCreditsResponse
+import dam_a51568.screenly.data.models.TmdbGenreResponse
 import dam_a51568.screenly.data.models.TmdbMovieDetails
 import dam_a51568.screenly.data.models.TmdbSearchResponse
 import dam_a51568.screenly.data.models.TmdbTvShowDetails
@@ -107,7 +108,7 @@ interface TmdbApiService {
      * @param id Identificador único do filme no TMDb.
      * @param apiKey Chave de autenticação da API do TMDb.
      * @param language Idioma dos resultados.
-     * @return Objecto com listas de elenco e crew.
+     * @return Objeto com listas de elenco e crew.
      */
     @GET("movie/{id}/credits")
     suspend fun getMovieCredits(
@@ -123,7 +124,7 @@ interface TmdbApiService {
      * @param id Identificador único da série no TMDb.
      * @param apiKey Chave de autenticação da API do TMDb.
      * @param language Idioma dos resultados.
-     * @return Objecto com listas de elenco e crew.
+     * @return Objeto com listas de elenco e crew.
      */
     @GET("tv/{id}/credits")
     suspend fun getTvCredits(
@@ -131,4 +132,76 @@ interface TmdbApiService {
         @Query("api_key") apiKey: String,
         @Query("language") language: String = "pt-PT"
     ): TmdbCreditsResponse
+
+    /**
+     * Obtém os géneros disponíveis para filmes.
+     * Endpoint: GET /genre/movie/list
+     *
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @return Lista de géneros de filmes.
+     */
+    @GET("genre/movie/list")
+    suspend fun getMovieGenres(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbGenreResponse
+
+    /**
+     * Obtém os géneros disponíveis para séries.
+     * Endpoint: GET /genre/tv/list
+     *
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @return Lista de géneros de séries.
+     */
+    @GET("genre/tv/list")
+    suspend fun getTvGenres(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbGenreResponse
+
+    /**
+     * Descobre filmes com filtros avançados.
+     * Endpoint: GET /discover/movie
+     *
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @param sortBy Critério de ordenação (ex: "popularity.desc", "vote_average.desc").
+     * @param withGenres ID do género pelo qual filtrar (opcional).
+     * @param withOriginCountry Código do país pelo qual filtrar (opcional).
+     * @param primaryReleaseDateGte Data mínima de lançamento (opcional).
+     * @return Lista de filmes filtrados.
+     */
+    @GET("discover/movie")
+    suspend fun discoverMovies(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT",
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("with_genres") withGenres: String? = null,
+        @Query("with_origin_country") withOriginCountry: String? = null,
+        @Query("primary_release_date.gte") primaryReleaseDateGte: String? = null
+    ): TmdbSearchResponse
+
+    /**
+     * Descobre séries com filtros avançados.
+     * Endpoint: GET /discover/tv
+     *
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @param sortBy Critério de ordenação.
+     * @param withGenres ID do género pelo qual filtrar (opcional).
+     * @param withOriginCountry Código do país pelo qual filtrar (opcional).
+     * @param firstAirDateGte Data mínima de estreia (opcional).
+     * @return Lista de séries filtradas.
+     */
+    @GET("discover/tv")
+    suspend fun discoverTvShows(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT",
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("with_genres") withGenres: String? = null,
+        @Query("with_origin_country") withOriginCountry: String? = null,
+        @Query("first_air_date.gte") firstAirDateGte: String? = null
+    ): TmdbSearchResponse
 }

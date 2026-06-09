@@ -23,6 +23,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import dam_a51568.screenly.data.models.TmdbMediaItem
 import dam_a51568.screenly.data.remote.TmdbClient
+import dam_a51568.screenly.ui.browse.BrowseFilter
 import dam_a51568.screenly.ui.theme.BackgroundDark
 import dam_a51568.screenly.ui.theme.BrandPurple
 import dam_a51568.screenly.ui.theme.CardBackground
@@ -34,15 +35,18 @@ import dam_a51568.screenly.ui.theme.TextSecondary
  * Ecrã de Pesquisa da aplicação Screenly.
  *
  * Apresenta uma barra de pesquisa no topo e uma grelha de resultados com 3 colunas,
- * adequada para tablet. Gere os estados de idle, loading, vazio e erro.
+ * adequada para tablet (uma vez que é o dispositivo físico que irá ser utilzado). Gere os estados
+ * de idle, loading, vazio e erro.
  *
- * @param onItemClick Callback chamado quando o utilizador clica num resultado,
- *                    recebendo o id e o mediaType do item selecionado.
+ * @param onItemClick Callback chamado quando o utilizador clica num resultado, recebendo o id e o mediaType do item selecionado.
  * @param viewModel ViewModel que gere o estado do ecrã.
  */
 @Composable
 fun SearchScreen(
     onItemClick: (id: Int, mediaType: String) -> Unit,
+    onCategoryClick: (BrowseFilter) -> Unit,
+    onGenreClick: () -> Unit,
+    onCountryClick: () -> Unit,
     viewModel: SearchViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -62,7 +66,11 @@ fun SearchScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         when (val state = uiState) {
-            is SearchUiState.Idle -> IdleContent()
+            is SearchUiState.Idle -> IdleContent(
+                onCategoryClick = onCategoryClick,
+                onGenreClick = onGenreClick,
+                onCountryClick = onCountryClick
+            )
             is SearchUiState.Loading -> LoadingContent()
             is SearchUiState.Empty -> EmptyContent(query = query)
             is SearchUiState.Error -> ErrorContent(message = state.message)
@@ -116,28 +124,97 @@ private fun SearchBar(
 
 /**
  * Conteúdo apresentado no estado inicial, antes de qualquer pesquisa.
+ * Apresenta a secção "Explorar por" com categorias clicáveis.
+ *
+ * @param onCategoryClick Callback chamado ao clicar numa categoria simples.
+ * @param onGenreClick Callback chamado ao clicar em "Por Género".
+ * @param onCountryClick Callback chamado ao clicar em "Por País".
  */
 @Composable
-private fun IdleContent() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+private fun IdleContent(
+    onCategoryClick: (BrowseFilter) -> Unit,
+    onGenreClick: () -> Unit,
+    onCountryClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-                tint = TextSecondary,
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Pesquisa um filme ou série",
-                color = TextSecondary,
-                fontSize = 18.sp
-            )
-        }
+        Text(
+            text = "Explorar por",
+            color = TextPrimary,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        BrowseItem(
+            title = "Mais Populares",
+            onClick = { onCategoryClick(BrowseFilter.POPULAR) }
+        )
+        BrowseDivider()
+        BrowseItem(
+            title = "Melhor Classificados",
+            onClick = { onCategoryClick(BrowseFilter.TOP_RATED) }
+        )
+        BrowseDivider()
+        BrowseItem(
+            title = "Lançamentos Recentes",
+            onClick = { onCategoryClick(BrowseFilter.RECENT) }
+        )
+        BrowseDivider()
+        BrowseItem(
+            title = "Por Género",
+            onClick = onGenreClick
+        )
+        BrowseDivider()
+        BrowseItem(
+            title = "Por País",
+            onClick = onCountryClick
+        )
     }
+}
+
+/**
+ * Item individual da secção "Explorar por".
+ *
+ * @param title Texto do item.
+ * @param onClick Callback chamado ao clicar no item.
+ */
+@Composable
+private fun BrowseItem(
+    title: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            color = TextPrimary,
+            fontSize = 16.sp
+        )
+        Text(
+            text = "›",
+            color = TextSecondary,
+            fontSize = 20.sp
+        )
+    }
+}
+
+/**
+ * Linha divisória entre itens da secção "Explorar por".
+ */
+@Composable
+private fun BrowseDivider() {
+    HorizontalDivider(color = CardBackground, thickness = 1.dp)
 }
 
 /**

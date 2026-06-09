@@ -17,6 +17,10 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import dam_a51568.screenly.data.repository.WatchStatus
+import dam_a51568.screenly.ui.browse.BrowseFilter
+import dam_a51568.screenly.ui.browse.BrowseResultsScreen
+import dam_a51568.screenly.ui.browse.CountryScreen
+import dam_a51568.screenly.ui.browse.GenreScreen
 import dam_a51568.screenly.ui.details.DetailScreen
 import dam_a51568.screenly.ui.home.HomeScreen
 import dam_a51568.screenly.ui.lists.ListsScreen
@@ -32,22 +36,42 @@ import dam_a51568.screenly.ui.theme.TextSecondary
  * Cada objeto representa uma rota única no grafo de navegação.
  */
 sealed class Screen(val route: String) {
-    /** Ecrã principal com títulos em tendência. */
+    // Ecrã principal com títulos em tendência.
     data object Home : Screen("home")
-    /** Ecrã de pesquisa de filmes e séries. */
+
+    // Ecrã de pesquisa de filmes e séries.
     data object Search : Screen("search")
-    /** Ecrã de perfil do utilizador. */
+
+    // Ecrã de perfil do utilizador.
     data object Profile : Screen("profile")
-    /** Ecrã de detalhes de um título — recebe id e mediaType como argumentos. */
+
+    // Ecrã de detalhes de um título, recebe id e mediaType como argumentos.
     data object Detail : Screen("detail/{id}/{mediaType}") {
         fun createRoute(id: Int, mediaType: String) = "detail/$id/$mediaType"
     }
-    /** Ecrã de listas do utilizador — recebe o estado inicial do separador. */
+
+    // Ecrã de listas do utilizador — recebe o estado inicial do separador.
     data object Lists : Screen("lists/{status}") {
         fun createRoute(status: WatchStatus) = "lists/${status.name}"
     }
-    /** Ecrã de definições do utilizador. */
+
+    // Ecrã de definições do utilizador.
     data object Settings : Screen("settings")
+
+    // Ecrã de seleção de género.
+    data object Genre : Screen("genre")
+
+    // Ecrã de seleção de país.
+    data object Country : Screen("country")
+
+    // Ecrã de resultados de navegação por categoria, género ou país.
+    data object BrowseResults : Screen("browse/{filter}/{title}/{extra}") {
+        fun createRoute(
+            filter: BrowseFilter,
+            title: String,
+            extra: String = "none"
+        ) = "browse/${filter.name}/$title/$extra"
+    }
 }
 
 /**
@@ -89,29 +113,19 @@ fun ScreenlyApp() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Itens da Bottom Navigation Bar
     val bottomNavItems = listOf(
-        BottomNavItem(
-            screen = Screen.Home,
-            label = "Início",
-            icon = Icons.Default.Home
-        ),
-        BottomNavItem(
-            screen = Screen.Search,
-            label = "Pesquisa",
-            icon = Icons.Default.Search
-        ),
-        BottomNavItem(
-            screen = Screen.Profile,
-            label = "Perfil",
-            icon = Icons.Default.Person
-        )
+        BottomNavItem(screen = Screen.Home, label = "Início", icon = Icons.Default.Home),
+        BottomNavItem(screen = Screen.Search, label = "Pesquisa", icon = Icons.Default.Search),
+        BottomNavItem(screen = Screen.Profile, label = "Perfil", icon = Icons.Default.Person)
     )
 
-    // A Bottom Bar não aparece nos ecrãs de detalhes, listas e definições
+    // A Bottom Bar não aparece nos ecrãs de detalhes, listas, definições, géneros, países e resultados
     val showBottomBar = currentRoute?.startsWith("detail") == false &&
             currentRoute?.startsWith("lists") == false &&
-            currentRoute != Screen.Settings.route
+            currentRoute?.startsWith("browse") == false &&
+            currentRoute != Screen.Settings.route &&
+            currentRoute != Screen.Genre.route &&
+            currentRoute != Screen.Country.route
 
     Scaffold(
         containerColor = BackgroundDark,
@@ -122,7 +136,6 @@ fun ScreenlyApp() {
                     currentRoute = currentRoute,
                     onItemClick = { screen ->
                         navController.navigate(screen.route) {
-                            // Evita criar múltiplas instâncias do mesmo destino
                             popUpTo(navController.graph.startDestinationId) {
                                 saveState = true
                             }
@@ -153,6 +166,23 @@ fun ScreenlyApp() {
                 SearchScreen(
                     onItemClick = { id, mediaType ->
                         navController.navigate(Screen.Detail.createRoute(id, mediaType))
+                    },
+                    onCategoryClick = { filter ->
+                        val title = when (filter) {
+                            BrowseFilter.POPULAR -> "Mais Populares"
+                            BrowseFilter.TOP_RATED -> "Melhor Classificados"
+                            BrowseFilter.RECENT -> "Lançamentos Recentes"
+                            else -> ""
+                        }
+                        navController.navigate(
+                            Screen.BrowseResults.createRoute(filter, title)
+                        )
+                    },
+                    onGenreClick = {
+                        navController.navigate(Screen.Genre.route)
+                    },
+                    onCountryClick = {
+                        navController.navigate(Screen.Country.route)
                     }
                 )
             }
@@ -172,7 +202,7 @@ fun ScreenlyApp() {
                 )
             }
 
-            // Ecrã de Listas, abre no separador correspondente à lista selecionada
+            // Ecrã de Listas
             composable(
                 route = Screen.Lists.route,
                 arguments = listOf(
@@ -197,7 +227,6 @@ fun ScreenlyApp() {
                 SettingsScreen(
                     onBack = { navController.popBackStack() },
                     onLogout = {
-                        // Navega para a LoginActivity e limpa toda a back stack
                         val intent = android.content.Intent(
                             context,
                             dam_a51568.screenly.ui.auth.LoginActivity::class.java
@@ -210,7 +239,66 @@ fun ScreenlyApp() {
                 )
             }
 
-            // Ecrã de Detalhes, recebe id (Int) e mediaType (String) como argumentos
+            // Ecrã de Géneros
+            composable(Screen.Genre.route) {
+                GenreScreen(
+                    onBack = { navController.popBackStack() },
+                    onGenreSelected = { genreId, genreName ->
+                        navController.navigate(
+                            Screen.BrowseResults.createRoute(
+                                filter = BrowseFilter.GENRE,
+                                title = genreName,
+                                extra = genreId
+                            )
+                        )
+                    }
+                )
+            }
+
+            // Ecrã de Países
+            composable(Screen.Country.route) {
+                CountryScreen(
+                    onBack = { navController.popBackStack() },
+                    onCountrySelected = { countryCode, countryName ->
+                        navController.navigate(
+                            Screen.BrowseResults.createRoute(
+                                filter = BrowseFilter.COUNTRY,
+                                title = countryName,
+                                extra = countryCode
+                            )
+                        )
+                    }
+                )
+            }
+
+            // Ecrã de Resultados de Navegação
+            composable(
+                route = Screen.BrowseResults.route,
+                arguments = listOf(
+                    navArgument("filter") { type = NavType.StringType },
+                    navArgument("title") { type = NavType.StringType },
+                    navArgument("extra") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val filterName = backStackEntry.arguments?.getString("filter")
+                    ?: return@composable
+                val title = backStackEntry.arguments?.getString("title") ?: return@composable
+                val extra = backStackEntry.arguments?.getString("extra") ?: "none"
+                val filter = BrowseFilter.valueOf(filterName)
+
+                BrowseResultsScreen(
+                    title = title,
+                    filter = filter,
+                    genreId = if (filter == BrowseFilter.GENRE) extra else null,
+                    countryCode = if (filter == BrowseFilter.COUNTRY) extra else null,
+                    onBack = { navController.popBackStack() },
+                    onItemClick = { id, mediaType ->
+                        navController.navigate(Screen.Detail.createRoute(id, mediaType))
+                    }
+                )
+            }
+
+            // Ecrã de Detalhes
             composable(
                 route = Screen.Detail.route,
                 arguments = listOf(
@@ -233,10 +321,9 @@ fun ScreenlyApp() {
 
 /**
  * Bottom Navigation Bar da aplicação.
- * Apresenta três separadores: Início, Pesquisa e Perfil.
  *
  * @param items Lista de itens a apresentar na barra.
- * @param currentRoute Rota actual do NavController, usada para destacar o separador ativo.
+ * @param currentRoute Rota actual do NavController.
  * @param onItemClick Callback chamado quando o utilizador clica num separador.
  */
 @Composable
@@ -260,9 +347,7 @@ fun ScreenlyBottomBar(
                         contentDescription = item.label
                     )
                 },
-                label = {
-                    Text(text = item.label)
-                },
+                label = { Text(text = item.label) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = BrandPurple,
                     selectedTextColor = BrandPurple,

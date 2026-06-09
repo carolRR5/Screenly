@@ -127,3 +127,11 @@ data class TmdbGenre(
     @SerializedName("id") val id: Int,
     @SerializedName("name") val name: String
 )
+
+/**
+ * Representa a resposta da API ao endpoint de géneros.
+ * Contém a lista de géneros disponíveis para filmes ou séries.
+ */
+data class TmdbGenreResponse(
+    @SerializedName("genres") val genres: List<TmdbGenre>
+)
