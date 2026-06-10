@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import dam_a51568.screenly.data.models.TmdbCastMember
 import dam_a51568.screenly.data.models.TmdbCrewMember
+import dam_a51568.screenly.data.models.TmdbReview
 import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.data.repository.WatchStatus
 import dam_a51568.screenly.data.repository.WatchlistRepository
@@ -69,6 +70,9 @@ fun DetailScreen(
     val crew by viewModel.crew.collectAsState()
     val trailerUrl by viewModel.trailerUrl.collectAsState()
 
+    val reviews by viewModel.reviews.collectAsState()
+    val visibleReviewsCount by viewModel.visibleReviewsCount.collectAsState()
+
     LaunchedEffect(id, mediaType) {
         viewModel.loadDetails(id, mediaType)
     }
@@ -89,12 +93,18 @@ fun DetailScreen(
                 cast = cast,
                 crew = crew,
                 trailerUrl = trailerUrl,
+                reviews = reviews,
+                visibleReviewsCount = visibleReviewsCount,
+                hasMoreReviews = viewModel.hasMoreReviews,
                 onAddToWatchlist = { status -> viewModel.addToWatchlist(state.data, status) },
                 onRemoveFromWatchlist = {
                     viewModel.removeFromWatchlist(state.data.id, state.data.mediaType)
                 },
                 onSaveRatingAndReview = { rating, review ->
                     viewModel.saveRatingAndReview(state.data.id, state.data.mediaType, rating, review)
+                },
+                onLoadMoreReviews = {
+                    viewModel.loadMoreReviews(state.data.id, state.data.mediaType)
                 }
             )
         }
@@ -163,9 +173,13 @@ private fun DetailContent(
     cast: List<TmdbCastMember>,
     crew: List<TmdbCrewMember>,
     trailerUrl: String?,
+    reviews: List<TmdbReview>,
+    visibleReviewsCount: Int,
+    hasMoreReviews: Boolean,
     onAddToWatchlist: (WatchStatus) -> Unit,
     onRemoveFromWatchlist: () -> Unit,
-    onSaveRatingAndReview: (Float, String) -> Unit
+    onSaveRatingAndReview: (Float, String) -> Unit,
+    onLoadMoreReviews: () -> Unit
 ) {
     var selectedCreditsTab by remember { mutableStateOf<CreditsTab?>(null) }
 
@@ -316,6 +330,22 @@ private fun DetailContent(
                     CrewList(crew = crew)
                 }
                 null -> {}
+            }
+
+            // Zona de reviews da comunidade
+            if (reviews.isNotEmpty()) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    color = CardBackground,
+                    thickness = 1.dp
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                ReviewsSection(
+                    reviews = reviews,
+                    visibleCount = visibleReviewsCount,
+                    hasMore = hasMoreReviews,
+                    onLoadMore = onLoadMoreReviews
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -660,5 +690,174 @@ private fun WatchlistButton(
         shape = RoundedCornerShape(8.dp)
     ) {
         Text(text = label, fontSize = 13.sp)
+    }
+}
+
+/**
+ * Secção de reviews da comunidade do TMDb.
+ * Apresenta as primeiras [visibleCount] reviews com opção de carregar mais.
+ *
+ * @param reviews Lista completa de reviews carregadas.
+ * @param visibleCount Número de reviews atualmente visíveis.
+ * @param hasMore Indica se há mais reviews disponíveis.
+ * @param onLoadMore Callback chamado ao clicar em "Ver mais reviews".
+ */
+@Composable
+private fun ReviewsSection(
+    reviews: List<TmdbReview>,
+    visibleCount: Int,
+    hasMore: Boolean,
+    onLoadMore: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+    ) {
+        Text(
+            text = "Reviews da comunidade",
+            color = TextPrimary,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Mostra apenas as reviews até ao limite visível
+        reviews.take(visibleCount).forEach { review ->
+            ReviewCard(review = review)
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // Botão "Ver mais reviews"
+        if (hasMore) {
+            Button(
+                onClick = onLoadMore,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = CardBackground,
+                    contentColor = BrandPurple
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = "Ver mais reviews",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+/**
+ * Cartão individual de uma review da comunidade.
+ * Apresenta o avatar do autor, o nome, a data, a classificação e o texto.
+ *
+ * @param review Dados da review a apresentar.
+ */
+@Composable
+private fun ReviewCard(review: TmdbReview) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CardBackground, RoundedCornerShape(12.dp))
+            .padding(16.dp)
+    ) {
+        // Cabeçalho com avatar, nome e data
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar do autor
+            val avatarUrl = review.authorDetails.avatarPath?.let { path ->
+                if (path.startsWith("/https")) {
+                    // Alguns avatares do TMDb têm o URL completo com "/" no início
+                    path.removePrefix("/")
+                } else {
+                    "${TmdbClient.IMAGE_BASE_URL}$path"
+                }
+            }
+
+            if (avatarUrl != null) {
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = review.author,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(BackgroundDark),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = review.author.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                        color = TextPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = review.author,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (review.formattedDate.isNotEmpty()) {
+                    Text(
+                        text = review.formattedDate,
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            // Classificação do autor, se existir
+            if (review.authorDetails.rating != null) {
+                Text(
+                    text = "⭐ ${"%.1f".format(review.authorDetails.rating)}",
+                    color = BrandPurple,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Texto da review com limite de linhas expansível
+        var expanded by remember { mutableStateOf(false) }
+        Text(
+            text = review.content,
+            color = TextSecondary,
+            fontSize = 13.sp,
+            lineHeight = 20.sp,
+            maxLines = if (expanded) Int.MAX_VALUE else 4,
+            overflow = if (expanded) androidx.compose.ui.text.style.TextOverflow.Visible
+            else androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
+
+        // Botão para expandir/recolher o texto da review
+        TextButton(
+            onClick = { expanded = !expanded },
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Text(
+                text = if (expanded) "Ver menos" else "Ver mais",
+                color = BrandPurple,
+                fontSize = 12.sp
+            )
+        }
     }
 }

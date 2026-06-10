@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dam_a51568.screenly.data.models.TmdbCastMember
 import dam_a51568.screenly.data.models.TmdbCrewMember
 import dam_a51568.screenly.data.models.TmdbGenre
+import dam_a51568.screenly.data.models.TmdbReview
 import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.data.repository.WatchlistItem
 import dam_a51568.screenly.data.repository.WatchlistRepository
@@ -73,6 +74,28 @@ class DetailViewModel : ViewModel() {
     private val _trailerUrl = MutableStateFlow<String?>(null)
     val trailerUrl: StateFlow<String?> = _trailerUrl.asStateFlow()
 
+    // Número de reviews visíveis atualmente no ecrã.
+    private val _visibleReviewsCount = MutableStateFlow(15)
+    val visibleReviewsCount: StateFlow<Int> = _visibleReviewsCount.asStateFlow()
+
+    // Todas as reviews carregadas até ao momento.
+    private val _reviews = MutableStateFlow<List<TmdbReview>>(emptyList())
+    val reviews: StateFlow<List<TmdbReview>> = _reviews.asStateFlow()
+
+    // Página actual de reviews carregadas.
+    private var currentReviewPage = 1
+
+    // Total de páginas de reviews disponíveis.
+    private var totalReviewPages = 1
+
+    /**
+     * Indica se há mais reviews disponíveis para carregar.
+     * True se ainda não foram carregadas todas as páginas ou se há mais reviews do que as atualmente visíveis.
+     */
+    val hasMoreReviews: Boolean
+        get() = _visibleReviewsCount.value < _reviews.value.size ||
+                currentReviewPage < totalReviewPages
+
     /**
      * Carrega os detalhes e os créditos do título em paralelo.
      * Usa [async] para otimizar o tempo de carregamento.
@@ -135,6 +158,14 @@ class DetailViewModel : ViewModel() {
                     }
                 }
 
+                val reviewsDeferred = async {
+                    if (mediaType == "movie") {
+                        TmdbClient.apiService.getMovieReviews(id, TmdbClient.API_KEY)
+                    } else {
+                        TmdbClient.apiService.getTvReviews(id, TmdbClient.API_KEY)
+                    }
+                }
+
                 val details = detailsDeferred.await()
                 val credits = creditsDeferred.await()
 
@@ -157,6 +188,12 @@ class DetailViewModel : ViewModel() {
                     .firstOrNull { it.official }?.youtubeUrl
                     ?: videos.results
                         .firstOrNull { it.site == "YouTube" && it.type == "Trailer" }?.youtubeUrl
+
+                val reviewsResponse = reviewsDeferred.await()
+                _reviews.value = reviewsResponse.results
+                totalReviewPages = reviewsResponse.totalPages
+                currentReviewPage = 1
+                _visibleReviewsCount.value = 15
 
             } catch (e: Exception) {
                 _uiState.value = DetailUiState.Error("Erro ao carregar detalhes. Tente novamente.")
@@ -196,5 +233,41 @@ class DetailViewModel : ViewModel() {
      */
     fun saveRatingAndReview(id: Int, mediaType: String, rating: Float, review: String) {
         WatchlistRepository.updateRatingAndReview(id, mediaType, rating, review)
+    }
+
+    /**
+     * Carrega mais reviews, primeiro torna visíveis as já carregadas, depois vai buscar a próxima página à API se necessário.
+     *
+     * @param id Identificador único do título no TMDb.
+     * @param mediaType Tipo de conteúdo: "movie" ou "tv".
+     */
+    fun loadMoreReviews(id: Int, mediaType: String) {
+        viewModelScope.launch {
+            // Se ainda há reviews carregadas, mas não visíveis, mostra-as primeiro
+            if (_visibleReviewsCount.value < _reviews.value.size) {
+                _visibleReviewsCount.value += 15
+                return@launch
+            }
+
+            // Caso contrário, carrega a próxima página da API
+            if (currentReviewPage < totalReviewPages) {
+                try {
+                    currentReviewPage++
+                    val response = if (mediaType == "movie") {
+                        TmdbClient.apiService.getMovieReviews(
+                            id, TmdbClient.API_KEY, page = currentReviewPage
+                        )
+                    } else {
+                        TmdbClient.apiService.getTvReviews(
+                            id, TmdbClient.API_KEY, page = currentReviewPage
+                        )
+                    }
+                    _reviews.value = _reviews.value + response.results
+                    _visibleReviewsCount.value += 15
+                } catch (e: Exception) {
+                    // Se falhar, mantém o estado actual
+                }
+            }
+        }
     }
 }

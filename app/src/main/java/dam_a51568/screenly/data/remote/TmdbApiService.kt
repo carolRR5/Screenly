@@ -3,6 +3,7 @@ package dam_a51568.screenly.data.remote
 import dam_a51568.screenly.data.models.TmdbCreditsResponse
 import dam_a51568.screenly.data.models.TmdbGenreResponse
 import dam_a51568.screenly.data.models.TmdbMovieDetails
+import dam_a51568.screenly.data.models.TmdbReviewsResponse
 import dam_a51568.screenly.data.models.TmdbSearchResponse
 import dam_a51568.screenly.data.models.TmdbTvShowDetails
 import dam_a51568.screenly.data.models.TmdbVideosResponse
@@ -237,4 +238,40 @@ interface TmdbApiService {
         @Query("api_key") apiKey: String,
         @Query("language") language: String = "pt-PT"
     ): TmdbVideosResponse
+
+    /**
+     * Obtém as reviews de um filme paginadas.
+     * Endpoint: GET /movie/{id}/reviews
+     *
+     * @param id Identificador único do filme no TMDb.
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @param page Número da página a carregar.
+     * @return Lista paginada de reviews do filme.
+     */
+    @GET("movie/{id}/reviews")
+    suspend fun getMovieReviews(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "en-US",
+        @Query("page") page: Int = 1
+    ): TmdbReviewsResponse
+
+    /**
+     * Obtém as reviews de uma série paginadas.
+     * Endpoint: GET /tv/{id}/reviews
+     *
+     * @param id Identificador único da série no TMDb.
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @param page Número da página a carregar.
+     * @return Lista paginada de reviews da série.
+     */
+    @GET("tv/{id}/reviews")
+    suspend fun getTvReviews(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "en-US",
+        @Query("page") page: Int = 1
+    ): TmdbReviewsResponse
 }

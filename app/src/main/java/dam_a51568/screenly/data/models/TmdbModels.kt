@@ -166,3 +166,63 @@ data class TmdbVideo(
     val youtubeUrl: String
         get() = "https://www.youtube.com/watch?v=$key"
 }
+
+/**
+ * Representa a resposta da API ao endpoint de reviews de um título.
+ *
+ * @param results Lista de reviews.
+ * @param totalPages Total de páginas disponíveis.
+ * @param totalResults Total de reviews disponíveis.
+ */
+data class TmdbReviewsResponse(
+    @SerializedName("results") val results: List<TmdbReview>,
+    @SerializedName("total_pages") val totalPages: Int,
+    @SerializedName("total_results") val totalResults: Int
+)
+
+/**
+ * Representa uma review de um filme ou série no TMDb.
+ *
+ * @param id Identificador único da review.
+ * @param author Nome do autor da review.
+ * @param authorDetails Detalhes do autor, incluindo avatar e classificação.
+ * @param content Texto da review.
+ * @param createdAt Data de criação da review.
+ */
+data class TmdbReview(
+    @SerializedName("id") val id: String,
+    @SerializedName("author") val author: String,
+    @SerializedName("author_details") val authorDetails: TmdbReviewAuthor,
+    @SerializedName("content") val content: String,
+    @SerializedName("created_at") val createdAt: String
+) {
+    /**
+     * Data de criação formatada para apresentação (ex: "Janeiro 2024").
+     */
+    val formattedDate: String
+        get() = try {
+            val inputFormat = java.text.SimpleDateFormat(
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                java.util.Locale.getDefault()
+            )
+            val outputFormat = java.text.SimpleDateFormat(
+                "MMMM yyyy",
+                java.util.Locale("pt", "PT")
+            )
+            val date = inputFormat.parse(createdAt)
+            if (date != null) outputFormat.format(date) else ""
+        } catch (e: Exception) {
+            ""
+        }
+}
+
+/**
+ * Representa os detalhes do autor de uma review.
+ *
+ * @param avatarPath Caminho do avatar do autor (pode ser null).
+ * @param rating Classificação atribuída pelo autor (pode ser null).
+ */
+data class TmdbReviewAuthor(
+    @SerializedName("avatar_path") val avatarPath: String?,
+    @SerializedName("rating") val rating: Double?
+)
