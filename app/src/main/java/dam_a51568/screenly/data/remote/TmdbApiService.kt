@@ -5,6 +5,7 @@ import dam_a51568.screenly.data.models.TmdbGenreResponse
 import dam_a51568.screenly.data.models.TmdbMovieDetails
 import dam_a51568.screenly.data.models.TmdbSearchResponse
 import dam_a51568.screenly.data.models.TmdbTvShowDetails
+import dam_a51568.screenly.data.models.TmdbVideosResponse
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -204,4 +205,36 @@ interface TmdbApiService {
         @Query("with_origin_country") withOriginCountry: String? = null,
         @Query("first_air_date.gte") firstAirDateGte: String? = null
     ): TmdbSearchResponse
+
+    /**
+     * Obtém os vídeos associados a um filme, incluindo trailers do YouTube.
+     * Endpoint: GET /movie/{id}/videos
+     *
+     * @param id Identificador único do filme no TMDb.
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @return Lista de vídeos associados ao filme.
+     */
+    @GET("movie/{id}/videos")
+    suspend fun getMovieVideos(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbVideosResponse
+
+    /**
+     * Obtém os vídeos associados a uma série, incluindo trailers do YouTube.
+     * Endpoint: GET /tv/{id}/videos
+     *
+     * @param id Identificador único da série no TMDb.
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @return Lista de vídeos associados à série.
+     */
+    @GET("tv/{id}/videos")
+    suspend fun getTvVideos(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbVideosResponse
 }

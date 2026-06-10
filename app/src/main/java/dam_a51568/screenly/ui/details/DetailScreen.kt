@@ -44,7 +44,7 @@ enum class CreditsTab { CAST, CREW }
  * Ecrã de Detalhes da aplicação Screenly.
  *
  * Estrutura do ecrã:
- * - Parte superior: layout horizontal com poster à esquerda e informações à direita
+ * - Parte superior: layout horizontal com póster à esquerda e informações à direita
  * - Parte inferior: secção de créditos (Elenco/Crew) em largura total
  *
  * @param id Identificador único do título no TMDb.
@@ -63,6 +63,7 @@ fun DetailScreen(
     val watchStatus by viewModel.watchStatus.collectAsState()
     val cast by viewModel.cast.collectAsState()
     val crew by viewModel.crew.collectAsState()
+    val trailerUrl by viewModel.trailerUrl.collectAsState()
 
     LaunchedEffect(id, mediaType) {
         viewModel.loadDetails(id, mediaType)
@@ -83,6 +84,7 @@ fun DetailScreen(
                 watchStatus = watchStatus,
                 cast = cast,
                 crew = crew,
+                trailerUrl = trailerUrl,
                 onAddToWatchlist = { status -> viewModel.addToWatchlist(state.data, status) },
                 onRemoveFromWatchlist = {
                     viewModel.removeFromWatchlist(state.data.id, state.data.mediaType)
@@ -146,7 +148,7 @@ private fun ErrorContent(message: String) {
  * Conteúdo principal do ecrã de detalhes.
  *
  * Dividido em duas zonas:
- * - Zona superior: Row com poster à esquerda e informações à direita
+ * - Zona superior: Row com póster à esquerda e informações à direita
  * - Zona inferior: secção de créditos em largura total, preparada para
  *   receber reviews de outros utilizadores numa fase futura
  *
@@ -164,6 +166,7 @@ private fun DetailContent(
     watchStatus: WatchStatus?,
     cast: List<TmdbCastMember>,
     crew: List<TmdbCrewMember>,
+    trailerUrl: String?,
     onAddToWatchlist: (WatchStatus) -> Unit,
     onRemoveFromWatchlist: () -> Unit,
     onSaveRatingAndReview: (Float, String) -> Unit
@@ -183,14 +186,14 @@ private fun DetailContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // ── Zona superior: Poster + Informações ──────────────────────────────
+        // Zona superior: Poster + Informações
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp),
             horizontalArrangement = Arrangement.spacedBy(32.dp)
         ) {
-            // Coluna esquerda — Poster
+            // Coluna esquerda, póster
             AsyncImage(
                 model = "${TmdbClient.IMAGE_BASE_URL}${data.posterPath}",
                 contentDescription = data.title,
@@ -201,7 +204,7 @@ private fun DetailContent(
                     .clip(RoundedCornerShape(16.dp))
             )
 
-            // Coluna direita — Informações e watchlist
+            // Coluna direita, informações e watchlist
             Column(modifier = Modifier.weight(1f)) {
 
                 // Título
@@ -242,6 +245,13 @@ private fun DetailContent(
                     )
                 }
 
+                // Botão de trailer, apenas visível se houver trailer disponível
+                if (trailerUrl != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    TrailerButton(trailerUrl = trailerUrl)
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Sinopse
@@ -273,7 +283,7 @@ private fun DetailContent(
             }
         }
 
-        // ── Divisor ──────────────────────────────────────────────────────────
+        // Divisor
         HorizontalDivider(
             modifier = Modifier.padding(horizontal = 24.dp),
             color = CardBackground,
@@ -282,7 +292,7 @@ private fun DetailContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // ── Zona inferior: Créditos em largura total ──────────────────────────
+        // Zona inferior: Créditos em largura total
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -297,7 +307,7 @@ private fun DetailContent(
                 }
             )
 
-            // Lista de créditos — aparece quando um botão está seleccionado
+            // Lista de créditos — aparece quando um botão está selecionado
             when (selectedCreditsTab) {
                 CreditsTab.CAST -> {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -310,9 +320,41 @@ private fun DetailContent(
                 null -> {}
             }
 
-            // ── Espaço reservado para Reviews (Fase futura) ──────────────────
+            // Espaço reservado para Reviews (Fase futura)
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+}
+
+/**
+ * Botão para abrir o trailer oficial no YouTube.
+ * Abre a app do YouTube ou o browser com o URL do trailer.
+ *
+ * @param trailerUrl URL do trailer no YouTube.
+ */
+@Composable
+private fun TrailerButton(trailerUrl: String) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    Button(
+        onClick = {
+            val intent = android.content.Intent(
+                android.content.Intent.ACTION_VIEW,
+                android.net.Uri.parse(trailerUrl)
+            )
+            context.startActivity(intent)
+        },
+        colors = ButtonDefaults.buttonColors(
+            containerColor = BrandPurple,
+            contentColor = Color.White
+        ),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            text = "▶  Ver Trailer",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 
@@ -320,7 +362,7 @@ private fun DetailContent(
  * Dois botões para alternar entre Elenco e Crew.
  * Clicar no mesmo botão fecha a lista.
  *
- * @param selectedTab Separador actualmente seleccionado, ou null se nenhum estiver aberto.
+ * @param selectedTab Separador atualmente selecionado, ou null se nenhum estiver aberto.
  * @param onTabSelected Callback chamado quando o utilizador clica num botão.
  */
 @Composable

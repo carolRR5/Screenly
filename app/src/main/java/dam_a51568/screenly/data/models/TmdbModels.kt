@@ -135,3 +135,34 @@ data class TmdbGenre(
 data class TmdbGenreResponse(
     @SerializedName("genres") val genres: List<TmdbGenre>
 )
+
+/**
+ * Representa a resposta da API ao endpoint de vídeos de um título.
+ *
+ * @param results Lista de vídeos disponíveis.
+ */
+data class TmdbVideosResponse(
+    @SerializedName("results") val results: List<TmdbVideo>
+)
+
+/**
+ * Representa um vídeo associado a um filme ou série no TMDb.
+ *
+ * @param key Chave do vídeo no YouTube (usada para construir o URL).
+ * @param site Plataforma onde o vídeo está alojado (ex: "YouTube").
+ * @param type Tipo de vídeo (ex: "Trailer", "Teaser", "Clip").
+ * @param official Indica se o vídeo é oficial.
+ */
+data class TmdbVideo(
+    @SerializedName("key") val key: String,
+    @SerializedName("site") val site: String,
+    @SerializedName("type") val type: String,
+    @SerializedName("official") val official: Boolean
+) {
+    /**
+     * URL completo do vídeo no YouTube.
+     * Construído a partir da chave devolvida pela API do TMDb.
+     */
+    val youtubeUrl: String
+        get() = "https://www.youtube.com/watch?v=$key"
+}

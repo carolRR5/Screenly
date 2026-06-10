@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Dados do título a apresentar no ecrã de detalhes.
- * Unifica os campos de filmes e séries num único objecto para simplificar a UI.
+ * Unifica os campos de filmes e séries num único objeto para simplificar a UI.
  */
 data class DetailUiData(
     val id: Int,
@@ -67,8 +67,15 @@ class DetailViewModel : ViewModel() {
     val crew: StateFlow<List<TmdbCrewMember>> = _crew.asStateFlow()
 
     /**
+     * URL do trailer oficial do título no YouTube.
+     * Null se não houver trailer disponível.
+     */
+    private val _trailerUrl = MutableStateFlow<String?>(null)
+    val trailerUrl: StateFlow<String?> = _trailerUrl.asStateFlow()
+
+    /**
      * Carrega os detalhes e os créditos do título em paralelo.
-     * Usa [async] para optimizar o tempo de carregamento.
+     * Usa [async] para otimizar o tempo de carregamento.
      *
      * @param id Identificador único do título no TMDb.
      * @param mediaType Tipo de conteúdo: "movie" ou "tv".
@@ -120,6 +127,14 @@ class DetailViewModel : ViewModel() {
                     }
                 }
 
+                val videosDeferred = async {
+                    if (mediaType == "movie") {
+                        TmdbClient.apiService.getMovieVideos(id, TmdbClient.API_KEY)
+                    } else {
+                        TmdbClient.apiService.getTvVideos(id, TmdbClient.API_KEY)
+                    }
+                }
+
                 val details = detailsDeferred.await()
                 val credits = creditsDeferred.await()
 
@@ -134,6 +149,14 @@ class DetailViewModel : ViewModel() {
                     .filter { it.department in listOf("Directing", "Writing", "Production", "Sound", "Camera") }
                     .distinctBy { it.id }
                     .sortedBy { it.department }
+
+                // Procura o trailer oficial em português, ou em inglês se não existir
+                val videos = videosDeferred.await()
+                _trailerUrl.value = videos.results
+                    .filter { it.site == "YouTube" && it.type == "Trailer" }
+                    .firstOrNull { it.official }?.youtubeUrl
+                    ?: videos.results
+                        .firstOrNull { it.site == "YouTube" && it.type == "Trailer" }?.youtubeUrl
 
             } catch (e: Exception) {
                 _uiState.value = DetailUiState.Error("Erro ao carregar detalhes. Tente novamente.")
