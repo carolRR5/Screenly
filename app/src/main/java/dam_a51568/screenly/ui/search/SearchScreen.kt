@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,7 +36,7 @@ import dam_a51568.screenly.ui.theme.TextSecondary
  * Ecrã de Pesquisa da aplicação Screenly.
  *
  * Apresenta uma barra de pesquisa no topo e uma grelha de resultados com 3 colunas,
- * adequada para tablet (uma vez que é o dispositivo físico que irá ser utilzado). Gere os estados
+ * adequada para tablet (uma vez que é o dispositivo físico que irá ser utilizado). Gere os estados
  * de idle, loading, vazio e erro.
  *
  * @param onItemClick Callback chamado quando o utilizador clica num resultado, recebendo o id e o mediaType do item selecionado.
@@ -56,14 +57,25 @@ fun SearchScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundDark)
-            .padding(16.dp)
+            .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
+        // Título do ecrã
+        Text(
+            text = "Pesquisa",
+            color = TextPrimary,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         SearchBar(
             query = query,
             onQueryChange = viewModel::onQueryChange
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(80.dp))
 
         when (val state = uiState) {
             is SearchUiState.Idle -> IdleContent(
@@ -97,15 +109,21 @@ private fun SearchBar(
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp),
         placeholder = {
-            Text(text = "Pesquisar filmes e séries...", color = TextSecondary)
+            Text(text = "Pesquisar filmes e séries...",
+                color = TextSecondary,
+                fontSize = 16.sp
+            )
         },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Pesquisar",
-                tint = BrandPurple
+                tint = BrandPurple,
+                modifier = Modifier.size(24.dp)
             )
         },
         singleLine = true,
@@ -118,7 +136,8 @@ private fun SearchBar(
             cursorColor = BrandPurple,
             focusedContainerColor = CardBackground,
             unfocusedContainerColor = CardBackground
-        )
+        ),
+        textStyle = TextStyle(fontSize = 16.sp)
     )
 }
 
@@ -136,42 +155,49 @@ private fun IdleContent(
     onGenreClick: () -> Unit,
     onCountryClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = "Explorar por",
             color = TextPrimary,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Descobre novos filmes e séries por categoria",
+            color = TextSecondary,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
 
         BrowseItem(
             title = "Mais Populares",
+            description = "Os títulos mais vistos agora",
             onClick = { onCategoryClick(BrowseFilter.POPULAR) }
         )
         BrowseDivider()
         BrowseItem(
             title = "Melhor Classificados",
+            description = "Os títulos com melhor nota da comunidade",
             onClick = { onCategoryClick(BrowseFilter.TOP_RATED) }
         )
         BrowseDivider()
         BrowseItem(
             title = "Lançamentos Recentes",
+            description = "Títulos lançados nos últimos 6 meses",
             onClick = { onCategoryClick(BrowseFilter.RECENT) }
         )
         BrowseDivider()
         BrowseItem(
             title = "Por Género",
+            description = "Acção, Comédia, Drama, Terror e mais",
             onClick = onGenreClick
         )
         BrowseDivider()
         BrowseItem(
             title = "Por País",
+            description = "Explora cinema de todo o mundo",
             onClick = onCountryClick
         )
     }
@@ -186,25 +212,36 @@ private fun IdleContent(
 @Composable
 private fun BrowseItem(
     title: String,
+    description: String,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 16.dp),
+            .padding(vertical = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = title,
-            color = TextPrimary,
-            fontSize = 16.sp
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = TextPrimary,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = description,
+                color = TextSecondary,
+                fontSize = 13.sp
+            )
+        }
+
         Text(
             text = "›",
             color = TextSecondary,
-            fontSize = 20.sp
+            fontSize = 24.sp
         )
     }
 }
@@ -244,7 +281,7 @@ private fun EmptyContent(query: String) {
         Text(
             text = "Sem resultados para \"$query\"",
             color = TextSecondary,
-            fontSize = 16.sp
+            fontSize = 18.sp
         )
     }
 }
