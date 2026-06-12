@@ -312,7 +312,12 @@ fun ScreenlyApp() {
                 DetailScreen(
                     id = id,
                     mediaType = mediaType,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onSimilarItemClick = { similarId, similarMediaType ->
+                        navController.navigate(
+                            Screen.Detail.createRoute(similarId, similarMediaType)
+                        )
+                    }
                 )
             }
         }

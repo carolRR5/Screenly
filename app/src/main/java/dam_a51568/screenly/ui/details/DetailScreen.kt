@@ -1,32 +1,17 @@
 package dam_a51568.screenly.ui.details
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import dam_a51568.screenly.data.models.TmdbCastMember
-import dam_a51568.screenly.data.models.TmdbCrewMember
-import dam_a51568.screenly.data.models.TmdbReview
-import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.data.repository.WatchStatus
 import dam_a51568.screenly.data.repository.WatchlistRepository
 import dam_a51568.screenly.ui.theme.BackgroundDark
@@ -34,7 +19,6 @@ import dam_a51568.screenly.ui.theme.BrandPurple
 import dam_a51568.screenly.ui.theme.CardBackground
 import dam_a51568.screenly.ui.theme.ErrorRed
 import dam_a51568.screenly.ui.theme.TextPrimary
-import dam_a51568.screenly.ui.theme.TextSecondary
 
 /**
  * Separadores disponíveis na secção de créditos do ecrã de detalhes.
@@ -47,14 +31,17 @@ enum class CreditsTab {
 /**
  * Ecrã de Detalhes da aplicação Screenly.
  *
- * Estrutura do ecrã:
- * - Zona superior: layout horizontal com póster à esquerda e informações à direita
- * - Zona de avaliação: secção em largura total para classificação e review
- * - Zona inferior: secção de créditos (Elenco/Crew) em largura total
+ * Orquestra as várias secções do ecrã:
+ * - [DetailMainInfo] — póster, informações e watchlist
+ * - [DetailRatingSection] — avaliação pessoal (apenas em WATCHED)
+ * - [DetailCreditsSection] — elenco e crew
+ * - [DetailSimilarSection] — títulos similares
+ * - [DetailReviewsSection] — reviews da comunidade
  *
  * @param id Identificador único do título no TMDb.
  * @param mediaType Tipo de conteúdo: "movie" ou "tv".
- * @param onBack Callback chamado quando o utilizador carrega no botão de retroceder.
+ * @param onBack Callback chamado ao clicar no botão de retroceder.
+ * @param onSimilarItemClick Callback chamado ao clicar num título similar.
  * @param viewModel ViewModel que gere o estado do ecrã.
  */
 @Composable
@@ -62,6 +49,7 @@ fun DetailScreen(
     id: Int,
     mediaType: String,
     onBack: () -> Unit,
+    onSimilarItemClick: (id: Int, mediaType: String) -> Unit,
     viewModel: DetailViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -69,9 +57,9 @@ fun DetailScreen(
     val cast by viewModel.cast.collectAsState()
     val crew by viewModel.crew.collectAsState()
     val trailerUrl by viewModel.trailerUrl.collectAsState()
-
     val reviews by viewModel.reviews.collectAsState()
     val visibleReviewsCount by viewModel.visibleReviewsCount.collectAsState()
+    val similarTitles by viewModel.similarTitles.collectAsState()
 
     LaunchedEffect(id, mediaType) {
         viewModel.loadDetails(id, mediaType)
@@ -82,782 +70,139 @@ fun DetailScreen(
             .fillMaxSize()
             .background(BackgroundDark)
     ) {
-        TopBar(onBack = onBack)
-
-        when (val state = uiState) {
-            is DetailUiState.Loading -> LoadingContent()
-            is DetailUiState.Error -> ErrorContent(message = state.message)
-            is DetailUiState.Success -> DetailContent(
-                data = state.data,
-                watchStatus = watchStatus,
-                cast = cast,
-                crew = crew,
-                trailerUrl = trailerUrl,
-                reviews = reviews,
-                visibleReviewsCount = visibleReviewsCount,
-                hasMoreReviews = viewModel.hasMoreReviews,
-                onAddToWatchlist = { status -> viewModel.addToWatchlist(state.data, status) },
-                onRemoveFromWatchlist = {
-                    viewModel.removeFromWatchlist(state.data.id, state.data.mediaType)
-                },
-                onSaveRatingAndReview = { rating, review ->
-                    viewModel.saveRatingAndReview(state.data.id, state.data.mediaType, rating, review)
-                },
-                onLoadMoreReviews = {
-                    viewModel.loadMoreReviews(state.data.id, state.data.mediaType)
-                }
-            )
-        }
-    }
-}
-
-/**
- * Barra de topo com botão de retroceder.
- */
-@Composable
-private fun TopBar(onBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = onBack) {
-            Icon(
-                imageVector = Icons.Default.ArrowBack,
-                contentDescription = "Retroceder",
-                tint = TextPrimary
-            )
-        }
-    }
-}
-
-/**
- * Indicador de carregamento.
- */
-@Composable
-private fun LoadingContent() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator(color = BrandPurple)
-    }
-}
-
-/**
- * Conteúdo de erro.
- */
-@Composable
-private fun ErrorContent(message: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = message, color = ErrorRed, fontSize = 16.sp)
-    }
-}
-
-/**
- * Conteúdo principal do ecrã de detalhes.
- *
- * Dividido em três zonas:
- * - Zona superior: Row com póster à esquerda e informações à direita
- * - Zona de avaliação: secção em largura total (apenas visível em WATCHED)
- * - Zona inferior: secção de créditos em largura total
- */
-@Composable
-private fun DetailContent(
-    data: DetailUiData,
-    watchStatus: WatchStatus?,
-    cast: List<TmdbCastMember>,
-    crew: List<TmdbCrewMember>,
-    trailerUrl: String?,
-    reviews: List<TmdbReview>,
-    visibleReviewsCount: Int,
-    hasMoreReviews: Boolean,
-    onAddToWatchlist: (WatchStatus) -> Unit,
-    onRemoveFromWatchlist: () -> Unit,
-    onSaveRatingAndReview: (Float, String) -> Unit,
-    onLoadMoreReviews: () -> Unit
-) {
-    var selectedCreditsTab by remember { mutableStateOf<CreditsTab?>(null) }
-
-    val currentItem = remember(watchStatus) {
-        if (watchStatus != null) {
-            WatchlistRepository.items
-                .firstOrNull { it.id == data.id && it.mediaType == data.mediaType }
-        } else null
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        // Zona superior: Póster + Informações
+        // Barra de topo com botão de retroceder
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
-            horizontalArrangement = Arrangement.spacedBy(32.dp)
-        ) {
-            // Coluna esquerda — Poster
-            AsyncImage(
-                model = "${TmdbClient.IMAGE_BASE_URL}${data.posterPath}",
-                contentDescription = data.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .width(260.dp)
-                    .aspectRatio(2f / 3f)
-                    .clip(RoundedCornerShape(16.dp))
-            )
-
-            // Coluna direita — Informações e watchlist
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = data.title,
-                    color = TextPrimary,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "${data.year}  •  ${data.runtime}",
-                    color = TextSecondary,
-                    fontSize = 14.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "⭐ ${"%.1f".format(data.voteAverage)} / 10",
-                    color = TextSecondary,
-                    fontSize = 14.sp
-                )
-
-                // Botão de trailer
-                if (trailerUrl != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    TrailerButton(trailerUrl = trailerUrl)
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                if (data.genres.isNotEmpty()) {
-                    Text(
-                        text = data.genres.joinToString(" • ") { it.name },
-                        color = BrandPurple,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Sinopse",
-                    color = TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = data.overview,
-                    color = TextSecondary,
-                    fontSize = 14.sp,
-                    lineHeight = 22.sp
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Botões de watchlist (sem a secção de avaliação)
-                WatchlistButtons(
-                    watchStatus = watchStatus,
-                    onAddToWatchlist = onAddToWatchlist,
-                    onRemoveFromWatchlist = onRemoveFromWatchlist
-                )
-            }
-        }
-
-        // Divisor
-        HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 24.dp),
-            color = CardBackground,
-            thickness = 1.dp
-        )
-
-        // Zona de avaliação em largura total (apenas em WATCHED)
-        if (watchStatus == WatchStatus.WATCHED) {
-            Spacer(modifier = Modifier.height(24.dp))
-            RatingSection(
-                currentRating = currentItem?.rating,
-                currentReview = currentItem?.review,
-                onSaveRatingAndReview = onSaveRatingAndReview
-            )
-
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 24.dp),
-                color = CardBackground,
-                thickness = 1.dp
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Zona de créditos em largura total
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-        ) {
-            CreditsButtons(
-                selectedTab = selectedCreditsTab,
-                onTabSelected = { tab ->
-                    selectedCreditsTab = if (selectedCreditsTab == tab) null else tab
-                }
-            )
-
-            when (selectedCreditsTab) {
-                CreditsTab.CAST -> {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    CastList(cast = cast)
-                }
-                CreditsTab.CREW -> {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    CrewList(crew = crew)
-                }
-                null -> {}
-            }
-
-            // Zona de reviews da comunidade
-            if (reviews.isNotEmpty()) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                    color = CardBackground,
-                    thickness = 1.dp
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                ReviewsSection(
-                    reviews = reviews,
-                    visibleCount = visibleReviewsCount,
-                    hasMore = hasMoreReviews,
-                    onLoadMore = onLoadMoreReviews
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-        }
-    }
-}
-
-/**
- * Botões de gestão da watchlist sem a secção de avaliação.
- * A avaliação foi movida para uma secção separada em largura total.
- *
- * @param watchStatus Estado actual do título na watchlist.
- * @param onAddToWatchlist Callback para adicionar o título com o estado especificado.
- * @param onRemoveFromWatchlist Callback para remover o título da watchlist.
- */
-@Composable
-private fun WatchlistButtons(
-    watchStatus: WatchStatus?,
-    onAddToWatchlist: (WatchStatus) -> Unit,
-    onRemoveFromWatchlist: () -> Unit
-) {
-    Text(
-        text = "A minha lista",
-        color = TextPrimary,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.SemiBold
-    )
-
-    Spacer(modifier = Modifier.height(12.dp))
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            WatchlistButton(
-                label = "To Watch",
-                isSelected = watchStatus == WatchStatus.TO_WATCH,
-                onClick = { onAddToWatchlist(WatchStatus.TO_WATCH) }
-            )
-            WatchlistButton(
-                label = "Watching",
-                isSelected = watchStatus == WatchStatus.WATCHING,
-                onClick = { onAddToWatchlist(WatchStatus.WATCHING) }
-            )
-            WatchlistButton(
-                label = "Watched",
-                isSelected = watchStatus == WatchStatus.WATCHED,
-                onClick = { onAddToWatchlist(WatchStatus.WATCHED) }
-            )
-        }
-
-        if (watchStatus != null) {
-            OutlinedButton(
-                onClick = onRemoveFromWatchlist,
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed),
-                border = ButtonDefaults.outlinedButtonBorder.copy(
-                    brush = SolidColor(ErrorRed)
-                )
-            ) {
-                Text(text = "Remover da lista")
-            }
-        }
-    }
-}
-
-/**
- * Secção de avaliação em largura total.
- * Apresenta o sistema de estrelas e o campo de review pessoal.
- * Apenas visível quando o título está no estado WATCHED.
- *
- * @param currentRating Classificação atual, ou null se não tiver sido atribuída.
- * @param currentReview Review atual, ou null se não tiver sido escrita.
- * @param onSaveRatingAndReview Callback para guardar a classificação e a review.
- */
-@Composable
-private fun RatingSection(
-    currentRating: Float?,
-    currentReview: String?,
-    onSaveRatingAndReview: (Float, String) -> Unit
-) {
-    var selectedRating by remember(currentRating) { mutableFloatStateOf(currentRating ?: 0f) }
-    var reviewText by remember(currentReview) { mutableStateOf(currentReview ?: "") }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = "A minha avaliação",
-            color = TextPrimary,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Sistema de 5 estrelas clicáveis
-        StarRatingBar(
-            rating = selectedRating,
-            onRatingChange = { selectedRating = it }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Campo de texto para a review pessoal
-        OutlinedTextField(
-            value = reviewText,
-            onValueChange = { reviewText = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = {
-                Text(text = "Escreve a tua review...", color = TextSecondary)
-            },
-            minLines = 3,
-            maxLines = 6,
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary,
-                focusedBorderColor = BrandPurple,
-                unfocusedBorderColor = TextSecondary,
-                cursorColor = BrandPurple,
-                focusedContainerColor = CardBackground,
-                unfocusedContainerColor = CardBackground
-            )
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Botão para guardar a avaliação
-        Button(
-            onClick = { onSaveRatingAndReview(selectedRating, reviewText) },
-            enabled = selectedRating > 0f,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = BrandPurple,
-                contentColor = TextPrimary,
-                disabledContainerColor = CardBackground,
-                disabledContentColor = TextSecondary
-            ),
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(text = "Guardar avaliação")
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-    }
-}
-
-/**
- * Sistema de classificação por estrelas.
- *
- * @param rating Classificação atual (0f se ainda não foi atribuída).
- * @param onRatingChange Callback chamado quando o utilizador clica numa estrela.
- */
-@Composable
-private fun StarRatingBar(
-    rating: Float,
-    onRatingChange: (Float) -> Unit
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        (1..5).forEach { star ->
-            Text(
-                text = if (star <= rating) "★" else "☆",
-                fontSize = 32.sp,
-                color = if (star <= rating) BrandPurple else TextSecondary,
-                modifier = Modifier.clickable { onRatingChange(star.toFloat()) }
-            )
-        }
-    }
-}
-
-/**
- * Botão para abrir o trailer oficial no YouTube.
- *
- * @param trailerUrl URL do trailer no YouTube.
- */
-@Composable
-private fun TrailerButton(trailerUrl: String) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-
-    Button(
-        onClick = {
-            val intent = android.content.Intent(
-                android.content.Intent.ACTION_VIEW,
-                android.net.Uri.parse(trailerUrl)
-            )
-            context.startActivity(intent)
-        },
-        colors = ButtonDefaults.buttonColors(
-            containerColor = BrandPurple,
-            contentColor = Color.White
-        ),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Text(
-            text = "▶  Ver Trailer",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-/**
- * Dois botões para alternar entre Elenco e Crew.
- */
-@Composable
-private fun CreditsButtons(
-    selectedTab: CreditsTab?,
-    onTabSelected: (CreditsTab) -> Unit
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button(
-            onClick = { onTabSelected(CreditsTab.CAST) },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (selectedTab == CreditsTab.CAST) BrandPurple else CardBackground,
-                contentColor = if (selectedTab == CreditsTab.CAST) Color.White else TextSecondary
-            ),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text(text = "Elenco", fontSize = 14.sp)
-        }
-
-        Button(
-            onClick = { onTabSelected(CreditsTab.CREW) },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (selectedTab == CreditsTab.CREW) BrandPurple else CardBackground,
-                contentColor = if (selectedTab == CreditsTab.CREW) Color.White else TextSecondary
-            ),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text(text = "Crew", fontSize = 14.sp)
-        }
-    }
-}
-
-/**
- * Lista vertical com os membros do elenco.
- */
-@Composable
-private fun CastList(cast: List<TmdbCastMember>) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        cast.forEach { member ->
-            CreditsMemberRow(
-                profilePath = member.profilePath,
-                name = member.name,
-                subtitle = member.character
-            )
-        }
-    }
-}
-
-/**
- * Lista vertical com os membros da crew.
- */
-@Composable
-private fun CrewList(crew: List<TmdbCrewMember>) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        crew.forEach { member ->
-            CreditsMemberRow(
-                profilePath = member.profilePath,
-                name = member.name,
-                subtitle = "${member.job} • ${member.department}"
-            )
-        }
-    }
-}
-
-/**
- * Linha individual de um membro do elenco ou crew.
- */
-@Composable
-private fun CreditsMemberRow(
-    profilePath: String?,
-    name: String,
-    subtitle: String
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardBackground, RoundedCornerShape(12.dp))
-            .padding(12.dp)
-    ) {
-        if (profilePath != null) {
-            AsyncImage(
-                model = "${TmdbClient.IMAGE_BASE_URL}${profilePath}",
-                contentDescription = name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(BackgroundDark),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-        }
-
-        Column {
-            Text(
-                text = name,
-                color = TextPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                color = TextSecondary,
-                fontSize = 12.sp
-            )
-        }
-    }
-}
-
-/**
- * Botão individual de estado da watchlist.
- */
-@Composable
-private fun WatchlistButton(
-    label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) BrandPurple else CardBackground,
-            contentColor = if (isSelected) Color.White else TextSecondary
-        ),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Text(text = label, fontSize = 13.sp)
-    }
-}
-
-/**
- * Secção de reviews da comunidade do TMDb.
- * Apresenta as primeiras [visibleCount] reviews com opção de carregar mais.
- *
- * @param reviews Lista completa de reviews carregadas.
- * @param visibleCount Número de reviews atualmente visíveis.
- * @param hasMore Indica se há mais reviews disponíveis.
- * @param onLoadMore Callback chamado ao clicar em "Ver mais reviews".
- */
-@Composable
-private fun ReviewsSection(
-    reviews: List<TmdbReview>,
-    visibleCount: Int,
-    hasMore: Boolean,
-    onLoadMore: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-    ) {
-        Text(
-            text = "Reviews da comunidade",
-            color = TextPrimary,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Mostra apenas as reviews até ao limite visível
-        reviews.take(visibleCount).forEach { review ->
-            ReviewCard(review = review)
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        // Botão "Ver mais reviews"
-        if (hasMore) {
-            Button(
-                onClick = onLoadMore,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = CardBackground,
-                    contentColor = BrandPurple
-                ),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    text = "Ver mais reviews",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-    }
-}
-
-/**
- * Cartão individual de uma review da comunidade.
- * Apresenta o avatar do autor, o nome, a data, a classificação e o texto.
- *
- * @param review Dados da review a apresentar.
- */
-@Composable
-private fun ReviewCard(review: TmdbReview) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CardBackground, RoundedCornerShape(12.dp))
-            .padding(16.dp)
-    ) {
-        // Cabeçalho com avatar, nome e data
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar do autor
-            val avatarUrl = review.authorDetails.avatarPath?.let { path ->
-                if (path.startsWith("/https")) {
-                    // Alguns avatares do TMDb têm o URL completo com "/" no início
-                    path.removePrefix("/")
-                } else {
-                    "${TmdbClient.IMAGE_BASE_URL}$path"
-                }
-            }
-
-            if (avatarUrl != null) {
-                AsyncImage(
-                    model = avatarUrl,
-                    contentDescription = review.author,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(BackgroundDark),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = review.author.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                        color = TextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = review.author,
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                if (review.formattedDate.isNotEmpty()) {
-                    Text(
-                        text = review.formattedDate,
-                        color = TextSecondary,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-
-            // Classificação do autor, se existir
-            if (review.authorDetails.rating != null) {
-                Text(
-                    text = "⭐ ${"%.1f".format(review.authorDetails.rating)}",
-                    color = BrandPurple,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Retroceder",
+                    tint = TextPrimary
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        when (val state = uiState) {
+            is DetailUiState.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = BrandPurple)
+                }
+            }
+            is DetailUiState.Error -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = state.message, color = ErrorRed)
+                }
+            }
+            is DetailUiState.Success -> {
+                val currentItem = remember(watchStatus) {
+                    if (watchStatus != null) {
+                        WatchlistRepository.items
+                            .firstOrNull { it.id == state.data.id && it.mediaType == state.data.mediaType }
+                    } else null
+                }
 
-        // Texto da review com limite de linhas expansível
-        var expanded by remember { mutableStateOf(false) }
-        Text(
-            text = review.content,
-            color = TextSecondary,
-            fontSize = 13.sp,
-            lineHeight = 20.sp,
-            maxLines = if (expanded) Int.MAX_VALUE else 4,
-            overflow = if (expanded) androidx.compose.ui.text.style.TextOverflow.Visible
-            else androidx.compose.ui.text.style.TextOverflow.Ellipsis
-        )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // Póster + Informações + Watchlist
+                    DetailMainInfo(
+                        data = state.data,
+                        watchStatus = watchStatus,
+                        trailerUrl = trailerUrl,
+                        onAddToWatchlist = { status ->
+                            viewModel.addToWatchlist(state.data, status)
+                        },
+                        onRemoveFromWatchlist = {
+                            viewModel.removeFromWatchlist(state.data.id, state.data.mediaType)
+                        }
+                    )
 
-        // Botão para expandir/recolher o texto da review
-        TextButton(
-            onClick = { expanded = !expanded },
-            contentPadding = PaddingValues(0.dp)
-        ) {
-            Text(
-                text = if (expanded) "Ver menos" else "Ver mais",
-                color = BrandPurple,
-                fontSize = 12.sp
-            )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                        color = CardBackground,
+                        thickness = 1.dp
+                    )
+
+                    // Avaliação pessoal (apenas em WATCHED)
+                    if (watchStatus == WatchStatus.WATCHED) {
+                        DetailRatingSection(
+                            currentRating = currentItem?.rating,
+                            currentReview = currentItem?.review,
+                            onSaveRatingAndReview = { rating, review ->
+                                viewModel.saveRatingAndReview(
+                                    state.data.id,
+                                    state.data.mediaType,
+                                    rating,
+                                    review
+                                )
+                            }
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            color = CardBackground,
+                            thickness = 1.dp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Elenco e Crew
+                    DetailCreditsSection(
+                        cast = cast,
+                        crew = crew
+                    )
+
+                    // Títulos Similares
+                    if (similarTitles.isNotEmpty()) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            color = CardBackground,
+                            thickness = 1.dp
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        DetailSimilarSection(
+                            titles = similarTitles,
+                            onItemClick = onSimilarItemClick
+                        )
+                    }
+
+                    // Reviews da comunidade
+                    if (reviews.isNotEmpty()) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            color = CardBackground,
+                            thickness = 1.dp
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        DetailReviewsSection(
+                            reviews = reviews,
+                            visibleCount = visibleReviewsCount,
+                            hasMore = viewModel.hasMoreReviews,
+                            onLoadMore = {
+                                viewModel.loadMoreReviews(
+                                    state.data.id,
+                                    state.data.mediaType
+                                )
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
+            }
         }
     }
 }

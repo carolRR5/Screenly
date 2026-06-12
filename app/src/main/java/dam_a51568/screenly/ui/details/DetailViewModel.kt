@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dam_a51568.screenly.data.models.TmdbCastMember
 import dam_a51568.screenly.data.models.TmdbCrewMember
 import dam_a51568.screenly.data.models.TmdbGenre
+import dam_a51568.screenly.data.models.TmdbMediaItem
 import dam_a51568.screenly.data.models.TmdbReview
 import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.data.repository.WatchlistItem
@@ -97,6 +98,13 @@ class DetailViewModel : ViewModel() {
                 currentReviewPage < totalReviewPages
 
     /**
+     * Lista de títulos similares ao título actual.
+     * Carregada em paralelo com os detalhes e créditos.
+     */
+    private val _similarTitles = MutableStateFlow<List<TmdbMediaItem>>(emptyList())
+    val similarTitles: StateFlow<List<TmdbMediaItem>> = _similarTitles.asStateFlow()
+
+    /**
      * Carrega os detalhes e os créditos do título em paralelo.
      * Usa [async] para otimizar o tempo de carregamento.
      *
@@ -166,6 +174,14 @@ class DetailViewModel : ViewModel() {
                     }
                 }
 
+                val similarDeferred = async {
+                    if (mediaType == "movie") {
+                        TmdbClient.apiService.getSimilarMovies(id, TmdbClient.API_KEY)
+                    } else {
+                        TmdbClient.apiService.getSimilarTvShows(id, TmdbClient.API_KEY)
+                    }
+                }
+
                 val details = detailsDeferred.await()
                 val credits = creditsDeferred.await()
 
@@ -194,6 +210,11 @@ class DetailViewModel : ViewModel() {
                 totalReviewPages = reviewsResponse.totalPages
                 currentReviewPage = 1
                 _visibleReviewsCount.value = 15
+
+                val similar = similarDeferred.await().results
+                    .filter { it.posterPath != null }
+                    .map { it.copy(mediaType = mediaType) }
+                _similarTitles.value = similar
 
             } catch (e: Exception) {
                 _uiState.value = DetailUiState.Error("Erro ao carregar detalhes. Tente novamente.")

@@ -274,4 +274,36 @@ interface TmdbApiService {
         @Query("language") language: String = "en-US",
         @Query("page") page: Int = 1
     ): TmdbReviewsResponse
+
+    /**
+     * Obtém títulos similares a um filme.
+     * Endpoint: GET /movie/{id}/similar
+     *
+     * @param id Identificador único do filme no TMDb.
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @return Lista de filmes similares.
+     */
+    @GET("movie/{id}/similar")
+    suspend fun getSimilarMovies(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbSearchResponse
+
+    /**
+     * Obtém títulos similares a uma série.
+     * Endpoint: GET /tv/{id}/similar
+     *
+     * @param id Identificador único da série no TMDb.
+     * @param apiKey Chave de autenticação da API do TMDb.
+     * @param language Idioma dos resultados.
+     * @return Lista de séries similares.
+     */
+    @GET("tv/{id}/similar")
+    suspend fun getSimilarTvShows(
+        @Path("id") id: Int,
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): TmdbSearchResponse
 }
