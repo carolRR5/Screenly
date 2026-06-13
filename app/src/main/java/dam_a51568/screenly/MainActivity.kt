@@ -17,6 +17,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import dam_a51568.screenly.data.model.WatchStatus
+import dam_a51568.screenly.data.repository.WatchlistRepository
 import dam_a51568.screenly.ui.browse.BrowseFilter
 import dam_a51568.screenly.ui.browse.BrowseResultsScreen
 import dam_a51568.screenly.ui.browse.CountryScreen
@@ -97,6 +98,9 @@ data class BottomNavItem(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        WatchlistRepository.startListening()
+
         setContent {
             ScreenlyApp()
         }

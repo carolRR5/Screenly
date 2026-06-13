@@ -1,68 +1,97 @@
 package dam_a51568.screenly.data.repository
 
 import androidx.compose.runtime.mutableStateListOf
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import dam_a51568.screenly.data.model.WatchStatus
 import dam_a51568.screenly.data.model.WatchlistItem
 
-
-/**
- * Repositório singleton que gere as listas pessoais do utilizador em memória RAM.
- * Esta implementação será substituída pela integração com Firebase Firestore numa fase posterior.
- *
- * Usa [mutableStateListOf] para que o Compose observe automaticamente as alterações à lista.
- */
 object WatchlistRepository {
+    private val firestore by lazy { FirebaseFirestore.getInstance() }
+    private val auth by lazy { FirebaseAuth.getInstance() }
 
+    // Cache local para o Compose observar as alterações
     private val _items = mutableStateListOf<WatchlistItem>()
-
-    // Lista observável de todos os itens na watchlist do utilizador.
     val items: List<WatchlistItem> get() = _items
 
-    // Devolve os itens filtrados por estado.
+    /**
+     * Obtém a coleção watchlist do utilizador atual no Firestore.
+     */
+    private fun watchlistCollection() = firestore
+        .collection("users")
+        .document(auth.currentUser?.uid ?: "")
+        .collection("watchlist")
+
+    /**
+     * Inicia a observação em tempo real da watchlist do utilizador.
+     * Deve ser chamado quando o utilizador faz login.
+     */
+    fun startListening() {
+        watchlistCollection()
+            .addSnapshotListener { snapshot, _ ->
+                if (snapshot != null) {
+                    _items.clear()
+                    _items.addAll(
+                        snapshot.documents.mapNotNull { doc ->
+                            doc.toObject(WatchlistItem::class.java)
+                        }
+                    )
+                }
+            }
+    }
+
+    /**
+     * Devolve os itens filtrados por estado.
+     */
     fun getByStatus(status: WatchStatus): List<WatchlistItem> =
         _items.filter { it.status == status }
 
     /**
-     * Adiciona um título à watchlist com o estado especificado.
-     * Se o título já existir (mesmo id + mediaType), atualiza o estado.
+     * Adiciona ou atualiza um item na watchlist.
      */
     fun addOrUpdate(item: WatchlistItem) {
-        val index = _items.indexOfFirst { it.id == item.id && it.mediaType == item.mediaType }
-        if (index >= 0) {
-            _items[index] = item
-        } else {
-            _items.add(item)
-        }
+        val uid = auth.currentUser?.uid ?: return
+        val docId = "${item.id}_${item.mediaType}"
+        val itemWithUid = item.copy(uid = uid)
+
+        watchlistCollection()
+            .document(docId)
+            .set(itemWithUid)
     }
 
     /**
-     * Altera o estado de um título já existente na watchlist.
-     * Mantém o rating e a review caso o item esteja a ser movido para WATCHED.
+     * Atualiza o estado de um item na watchlist.
      */
     fun updateStatus(id: Int, mediaType: String, newStatus: WatchStatus) {
-        val index = _items.indexOfFirst { it.id == id && it.mediaType == mediaType }
-        if (index >= 0) {
-            _items[index] = _items[index].copy(status = newStatus)
-        }
+        val docId = "${id}_${mediaType}"
+        watchlistCollection()
+            .document(docId)
+            .update("status", newStatus.name)
     }
 
     /**
-     * Guarda a classificação e a review pessoal de um título.
-     * Só deve ser chamado para títulos com estado WATCHED.
+     * Guarda o rating e a review de um item.
      */
     fun updateRatingAndReview(id: Int, mediaType: String, rating: Float, review: String) {
-        val index = _items.indexOfFirst { it.id == id && it.mediaType == mediaType }
-        if (index >= 0) {
-            _items[index] = _items[index].copy(rating = rating, review = review)
-        }
+        val docId = "${id}_${mediaType}"
+        watchlistCollection()
+            .document(docId)
+            .update(mapOf("rating" to rating, "review" to review))
     }
 
-    // Remove um título da watchlist.
+    /**
+     * Remove um item da watchlist.
+     */
     fun remove(id: Int, mediaType: String) {
-        _items.removeAll { it.id == id && it.mediaType == mediaType }
+        val docId = "${id}_${mediaType}"
+        watchlistCollection()
+            .document(docId)
+            .delete()
     }
 
-    // Verifica se um título já está na watchlist e devolve o seu estado ou null.
+    /**
+     * Verifica se um item está na watchlist e devolve o seu estado.
+     */
     fun getStatus(id: Int, mediaType: String): WatchStatus? =
         _items.firstOrNull { it.id == id && it.mediaType == mediaType }?.status
 }

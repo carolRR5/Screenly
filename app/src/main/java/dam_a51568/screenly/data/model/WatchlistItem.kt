@@ -13,5 +13,7 @@ data class WatchlistItem(
     val genres: String = "",
     val status: WatchStatus = WatchStatus.TO_WATCH,
     val rating: Float? = null,
-    val review: String? = null
+    val review: String? = null,
+    val addedAt: Long = System.currentTimeMillis(), // Data em que foi adicionado
+    val uid: String = "" // para saber que utilizador é
 )

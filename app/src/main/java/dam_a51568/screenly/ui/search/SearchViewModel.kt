@@ -18,9 +18,9 @@ import kotlinx.coroutines.launch
 
 // Estados possíveis do ecrã de pesquisa.
 sealed class SearchUiState {
-    data object Idle : SearchUiState()         // Estado inicial, sem pesquisa ativa
-    data object Loading : SearchUiState()      // A carregar resultados da API
-    data object Empty : SearchUiState()        // Pesquisa feita, mas sem resultados
+    data object Idle : SearchUiState() // Estado inicial, sem pesquisa ativa
+    data object Loading : SearchUiState() // A carregar resultados da API
+    data object Empty : SearchUiState() // Pesquisa feita, mas sem resultados
     data class Error(val message: String) : SearchUiState()
     data class Success(val results: List<MediaItem>) : SearchUiState()
 }
