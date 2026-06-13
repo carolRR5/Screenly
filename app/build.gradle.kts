@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // Jetpack Compose
     implementation(platform(libs.androidx.compose.bom))

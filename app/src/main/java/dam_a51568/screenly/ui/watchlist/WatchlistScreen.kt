@@ -22,8 +22,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import dam_a51568.screenly.data.remote.TmdbClient
-import dam_a51568.screenly.data.repository.WatchStatus
-import dam_a51568.screenly.data.repository.WatchlistItem
+import dam_a51568.screenly.data.model.WatchStatus
+import dam_a51568.screenly.data.model.WatchlistItem
 import dam_a51568.screenly.data.repository.WatchlistRepository
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import dam_a51568.screenly.ui.theme.BackgroundDark

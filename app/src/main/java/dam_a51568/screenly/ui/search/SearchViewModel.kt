@@ -2,8 +2,9 @@ package dam_a51568.screenly.ui.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dam_a51568.screenly.data.models.TmdbMediaItem
+import dam_a51568.screenly.data.model.MediaItem
 import dam_a51568.screenly.data.remote.TmdbClient
+import dam_a51568.screenly.data.repository.toMediaItem
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +22,7 @@ sealed class SearchUiState {
     data object Loading : SearchUiState()      // A carregar resultados da API
     data object Empty : SearchUiState()        // Pesquisa feita, mas sem resultados
     data class Error(val message: String) : SearchUiState()
-    data class Success(val results: List<TmdbMediaItem>) : SearchUiState()
+    data class Success(val results: List<MediaItem>) : SearchUiState()
 }
 
 /**
@@ -31,10 +32,8 @@ sealed class SearchUiState {
  */
 @OptIn(FlowPreview::class)
 class SearchViewModel : ViewModel() {
-
     private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
-
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
@@ -63,10 +62,11 @@ class SearchViewModel : ViewModel() {
                     query = query,
                     apiKey = TmdbClient.API_KEY
                 )
-                // Filtra apenas filmes e séries com póster disponível
-                val filtered = response.results.filter {
-                    it.mediaType in listOf("movie", "tv") && it.posterPath != null
-                }
+                // Filtra apenas filmes e séries com póster disponível e converte para modelo de domínio
+                val filtered = response.results
+                    .filter { it.mediaType in listOf("movie", "tv") && it.posterPath != null }
+                    .map { it.toMediaItem() }
+
                 _uiState.value = if (filtered.isEmpty()) {
                     SearchUiState.Empty
                 } else {

@@ -2,9 +2,12 @@ package dam_a51568.screenly.ui.profile
 
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
-import dam_a51568.screenly.data.repository.WatchStatus
-import dam_a51568.screenly.data.repository.WatchlistItem
+import dam_a51568.screenly.data.model.User
+import dam_a51568.screenly.data.model.WatchStatus
+import dam_a51568.screenly.data.model.WatchlistItem
+import dam_a51568.screenly.data.repository.UserRepository
 import dam_a51568.screenly.data.repository.WatchlistRepository
+import dam_a51568.screenly.data.repository.toUser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,20 +37,21 @@ class ProfileViewModel : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
 
-    /** Nome do utilizador autenticado, ou "Utilizador" se não estiver definido. */
-    val displayName: String
-        get() = auth.currentUser?.displayName ?: "Utilizador"
+    /** Dados do utilizador vindos da Firestore (em tempo real). */
+    private val _user = MutableStateFlow<User?>(auth.currentUser?.toUser())
+    val user: StateFlow<User?> = _user.asStateFlow()
 
-    /** Email do utilizador autenticado. */
-    val email: String
-        get() = auth.currentUser?.email ?: ""
-
-    /**
-     * URL da foto de perfil do utilizador no Firebase Auth.
-     * Null se o utilizador não tiver foto definida.
-     */
-    val photoUrl: String?
-        get() = auth.currentUser?.photoUrl?.toString()
+    init {
+        // Começa a observar os dados na Firestore assim que o ViewModel é criado
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            UserRepository.getUser(uid) { firestoreUser ->
+                if (firestoreUser != null) {
+                    _user.value = firestoreUser
+                }
+            }
+        }
+    }
 
     /**
      * Data de criação da conta no Firebase Auth, formatada como string.

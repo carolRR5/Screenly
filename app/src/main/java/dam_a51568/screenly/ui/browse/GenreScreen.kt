@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,8 +20,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import dam_a51568.screenly.data.models.TmdbGenre
+import dam_a51568.screenly.data.model.Genre
 import dam_a51568.screenly.data.remote.TmdbClient
+import dam_a51568.screenly.data.repository.toGenre
 import dam_a51568.screenly.ui.theme.BackgroundDark
 import dam_a51568.screenly.ui.theme.BrandPurple
 import dam_a51568.screenly.ui.theme.CardBackground
@@ -37,7 +38,7 @@ import kotlinx.coroutines.launch
 sealed class GenreUiState {
     data object Loading : GenreUiState()
     data class Error(val message: String) : GenreUiState()
-    data class Success(val genres: List<TmdbGenre>) : GenreUiState()
+    data class Success(val genres: List<Genre>) : GenreUiState()
 }
 
 /**
@@ -45,7 +46,6 @@ sealed class GenreUiState {
  * Carrega os géneros de filmes e séries em paralelo e combina-os sem duplicados.
  */
 class GenreViewModel : ViewModel() {
-
     private val _uiState = MutableStateFlow<GenreUiState>(GenreUiState.Loading)
     val uiState: StateFlow<GenreUiState> = _uiState.asStateFlow()
 
@@ -68,8 +68,8 @@ class GenreViewModel : ViewModel() {
                     TmdbClient.apiService.getTvGenres(TmdbClient.API_KEY)
                 }
 
-                val movieGenres = movieGenresDeferred.await().genres
-                val tvGenres = tvGenresDeferred.await().genres
+                val movieGenres = movieGenresDeferred.await().genres.map { it.toGenre() }
+                val tvGenres = tvGenresDeferred.await().genres.map { it.toGenre() }
 
                 // Combina os dois e remove duplicados pelo id
                 val combined = (movieGenres + tvGenres)
@@ -115,12 +115,12 @@ fun GenreScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Retroceder",
-                    tint = TextPrimary
-                )
-            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Retroceder",
+                tint = TextPrimary
+            )
+        }
             Text(
                 text = "Explorar por género",
                 color = TextPrimary,
@@ -173,7 +173,7 @@ fun GenreScreen(
  */
 @Composable
 private fun GenreCard(
-    genre: TmdbGenre,
+    genre: Genre,
     onClick: () -> Unit
 ) {
     Box(

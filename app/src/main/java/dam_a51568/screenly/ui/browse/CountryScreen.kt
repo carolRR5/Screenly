@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,22 +17,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.*
+import dam_a51568.screenly.data.model.Country
 import dam_a51568.screenly.ui.theme.BackgroundDark
 import dam_a51568.screenly.ui.theme.CardBackground
 import dam_a51568.screenly.ui.theme.TextPrimary
-
-/**
- * Representa um país disponível para filtrar conteúdos.
- *
- * @param code Código ISO do país (ex: "PT", "US", "JP").
- * @param name Nome do país em português.
- * @param flag Emoji da bandeira do país.
- */
-data class Country(
-    val code: String,
-    val name: String,
-    val flag: String
-)
 
 /**
  * Lista de países disponíveis para filtrar conteúdos no TMDb.
@@ -98,12 +86,12 @@ fun CountryScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Retroceder",
-                    tint = TextPrimary
-                )
-            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Retroceder",
+                tint = TextPrimary
+            )
+        }
             Text(
                 text = "Explorar por país",
                 color = TextPrimary,

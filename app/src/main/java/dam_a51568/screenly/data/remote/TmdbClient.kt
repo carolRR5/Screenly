@@ -1,6 +1,7 @@
 package dam_a51568.screenly.data.remote
 
 import dam_a51568.screenly.BuildConfig
+import dam_a51568.screenly.data.remote.api.TmdbApiService
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -17,7 +18,7 @@ object TmdbClient {
     private const val BASE_URL = "https://api.themoviedb.org/3/"
 
     /**
-     * URL base para construir os endereços completos das imagens de poster.
+     * URL base para construir os endereços completos das imagens de póster.
      * O sufixo "w500" define a largura da imagem em píxeis.
      */
     const val IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
@@ -27,7 +28,7 @@ object TmdbClient {
      * Lida de forma segura a partir do BuildConfig, que por sua vez a obtém do ficheiro
      * local.properties.-
      */
-    val API_KEY = BuildConfig.TMDB_API_KEY
+    const val API_KEY = BuildConfig.TMDB_API_KEY
 
     /**
      * Instância de "TmdbApiService" gerada pelo Retrofit.

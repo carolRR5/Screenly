@@ -10,6 +10,8 @@ import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.UserProfileChangeRequest
 import dam_a51568.screenly.MainActivity
+import dam_a51568.screenly.data.model.User
+import dam_a51568.screenly.data.repository.UserRepository
 import dam_a51568.screenly.databinding.ActivityRegisterBinding
 
 /**
@@ -145,21 +147,27 @@ class RegisterActivity : AppCompatActivity() {
 
         auth.createUserWithEmailAndPassword(email, password)
             .addOnSuccessListener { authResult ->
-                // Guarda o nome no perfil do Firebase Auth
+                val firebaseUser = authResult.user
+                
+                // 1. Atualizar o perfil no Firebase Auth (para o displayName ficar disponível localmente)
                 val profileUpdates = UserProfileChangeRequest.Builder()
                     .setDisplayName(name)
                     .build()
 
-                authResult.user?.updateProfile(profileUpdates)
-                    ?.addOnSuccessListener {
-                        setLoading(false)
-                        navigateToMain()
-                    }
-                    ?.addOnFailureListener {
-                        // Mesmo que falhe a actualizar o nome, o registo foi bem-sucedido
-                        // por isso navega para a MainActivity na mesma
-                        setLoading(false)
-                        navigateToMain()
+                firebaseUser?.updateProfile(profileUpdates)
+                    ?.addOnCompleteListener {
+                        // 2. Guardar os dados na Firestore (mesmo que o updateProfile falhe)
+                        val newUser = User(
+                            uid = firebaseUser.uid,
+                            email = email,
+                            displayName = name
+                        )
+
+                        UserRepository.saveUser(newUser)
+                            .addOnCompleteListener {
+                                setLoading(false)
+                                navigateToMain()
+                            }
                     }
             }
             .addOnFailureListener { exception ->

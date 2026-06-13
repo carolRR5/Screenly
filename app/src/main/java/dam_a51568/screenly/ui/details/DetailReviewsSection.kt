@@ -15,7 +15,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import dam_a51568.screenly.data.models.TmdbReview
+import dam_a51568.screenly.data.model.Review
 import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.ui.theme.BackgroundDark
 import dam_a51568.screenly.ui.theme.BrandPurple
@@ -35,7 +35,7 @@ import dam_a51568.screenly.ui.theme.TextSecondary
  */
 @Composable
 fun DetailReviewsSection(
-    reviews: List<TmdbReview>,
+    reviews: List<Review>,
     visibleCount: Int,
     hasMore: Boolean,
     onLoadMore: () -> Unit
@@ -89,7 +89,7 @@ fun DetailReviewsSection(
  * @param review Dados da review a apresentar.
  */
 @Composable
-private fun ReviewCard(review: TmdbReview) {
+private fun ReviewCard(review: Review) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -101,8 +101,8 @@ private fun ReviewCard(review: TmdbReview) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Avatar do autor
-            val avatarUrl = review.authorDetails.avatarPath?.let { path ->
-                if (path.startsWith("/https")) path.removePrefix("/")
+            val avatarUrl = review.avatarUrl?.let { path ->
+                if (path.startsWith("http")) path
                 else "${TmdbClient.IMAGE_BASE_URL}$path"
             }
 
@@ -148,9 +148,9 @@ private fun ReviewCard(review: TmdbReview) {
                 }
             }
 
-            if (review.authorDetails.rating != null) {
+            if (review.rating != null) {
                 Text(
-                    text = "⭐ ${"%.1f".format(review.authorDetails.rating)}",
+                    text = "⭐ ${"%.1f".format(review.rating)}",
                     color = BrandPurple,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold

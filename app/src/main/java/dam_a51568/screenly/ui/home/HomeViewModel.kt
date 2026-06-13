@@ -2,8 +2,9 @@ package dam_a51568.screenly.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dam_a51568.screenly.data.models.TmdbMediaItem
+import dam_a51568.screenly.data.model.MediaItem
 import dam_a51568.screenly.data.remote.TmdbClient
+import dam_a51568.screenly.data.repository.toMediaItem
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,9 +20,9 @@ import kotlinx.coroutines.launch
  * @param popularTvShows Séries mais populares atualmente.
  */
 data class HomeData(
-    val trending: List<TmdbMediaItem>,
-    val popularMovies: List<TmdbMediaItem>,
-    val popularTvShows: List<TmdbMediaItem>
+    val trending: List<MediaItem>,
+    val popularMovies: List<MediaItem>,
+    val popularTvShows: List<MediaItem>
 )
 
 // Estados possíveis do ecrã de Início
@@ -71,15 +72,17 @@ class HomeViewModel : ViewModel() {
                 }
 
                 // Aguarda os três resultados
-                val trending = trendingDeferred.await().results.filter {
-                    it.mediaType in listOf("movie", "tv") && it.posterPath != null
-                }
-                val movies = moviesDeferred.await().results.filter {
-                    it.posterPath != null
-                }
-                val tvShows = tvDeferred.await().results.filter {
-                    it.posterPath != null
-                }
+                val trending = trendingDeferred.await().results
+                    .filter { it.mediaType in listOf("movie", "tv") && it.posterPath != null }
+                    .map { it.toMediaItem() }
+
+                val movies = moviesDeferred.await().results
+                    .filter { it.posterPath != null }
+                    .map { it.copy(mediaType = "movie").toMediaItem() }
+
+                val tvShows = tvDeferred.await().results
+                    .filter { it.posterPath != null }
+                    .map { it.copy(mediaType = "tv").toMediaItem() }
 
                 _uiState.value = HomeUiState.Success(
                     HomeData(

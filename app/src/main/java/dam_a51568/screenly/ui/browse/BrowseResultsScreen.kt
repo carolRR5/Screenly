@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import dam_a51568.screenly.data.models.TmdbMediaItem
+import dam_a51568.screenly.data.model.MediaItem
 import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.ui.theme.BackgroundDark
 import dam_a51568.screenly.ui.theme.BrandPurple
@@ -90,7 +90,7 @@ private fun TopBar(title: String, onBack: () -> Unit) {
     ) {
         IconButton(onClick = onBack) {
             Icon(
-                imageVector = Icons.Default.ArrowBack,
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Retroceder",
                 tint = TextPrimary
             )
@@ -138,7 +138,7 @@ private fun ErrorContent(message: String) {
  */
 @Composable
 private fun ResultsGrid(
-    results: List<TmdbMediaItem>,
+    results: List<MediaItem>,
     onItemClick: (id: Int, mediaType: String) -> Unit
 ) {
     LazyVerticalGrid(
@@ -164,7 +164,7 @@ private fun ResultsGrid(
  */
 @Composable
 private fun BrowseMediaCard(
-    item: TmdbMediaItem,
+    item: MediaItem,
     onClick: () -> Unit
 ) {
     Column(
@@ -175,8 +175,8 @@ private fun BrowseMediaCard(
     ) {
         Box {
             AsyncImage(
-                model = "${TmdbClient.IMAGE_BASE_URL}${item.posterPath}",
-                contentDescription = item.displayTitle,
+                model = if (item.posterUrl.startsWith("http")) item.posterUrl else "${TmdbClient.IMAGE_BASE_URL}${item.posterUrl}",
+                contentDescription = item.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -203,7 +203,7 @@ private fun BrowseMediaCard(
 
         Column(modifier = Modifier.padding(8.dp)) {
             Text(
-                text = item.displayTitle,
+                text = item.title,
                 color = TextPrimary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -212,7 +212,7 @@ private fun BrowseMediaCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = item.displayYear,
+                text = item.year,
                 color = TextSecondary,
                 fontSize = 11.sp
             )

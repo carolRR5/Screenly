@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
+import dam_a51568.screenly.data.model.User
+import dam_a51568.screenly.data.repository.UserRepository
+import dam_a51568.screenly.data.repository.toUser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,13 +39,17 @@ class SettingsViewModel : ViewModel() {
     private val _operationState = MutableStateFlow<SettingsOperationState>(SettingsOperationState.Idle)
     val operationState: StateFlow<SettingsOperationState> = _operationState.asStateFlow()
 
+    // Dados do utilizador autenticado.
+    private val user: User?
+        get() = auth.currentUser?.toUser()
+
     // Nome actual do utilizador autenticado.
     val currentName: String
-        get() = auth.currentUser?.displayName ?: ""
+        get() = user?.displayName ?: ""
 
     // Email atual do utilizador autenticado.
     val currentEmail: String
-        get() = auth.currentUser?.email ?: ""
+        get() = user?.email ?: ""
 
     // Versão da aplicação
     val appVersion = "1.0.0"
@@ -60,16 +67,27 @@ class SettingsViewModel : ViewModel() {
 
         viewModelScope.launch {
             _operationState.value = SettingsOperationState.Loading
+            
+            val firebaseUser = auth.currentUser ?: return@launch
             val profileUpdates = UserProfileChangeRequest.Builder()
                 .setDisplayName(newName)
                 .build()
 
-            auth.currentUser?.updateProfile(profileUpdates)
-                ?.addOnSuccessListener {
-                    _operationState.value = SettingsOperationState.Success("Nome atualizado com sucesso")
+            // 1. Atualizar no Auth
+            firebaseUser.updateProfile(profileUpdates)
+                .addOnSuccessListener {
+                    // 2. Atualizar na Firestore
+                    val updatedUser = firebaseUser.toUser() // Já terá o novo displayName
+                    UserRepository.saveUser(updatedUser)
+                        .addOnSuccessListener {
+                            _operationState.value = SettingsOperationState.Success("Nome atualizado com sucesso")
+                        }
+                        .addOnFailureListener {
+                            _operationState.value = SettingsOperationState.Error("Erro ao sincronizar com a base de dados")
+                        }
                 }
-                ?.addOnFailureListener {
-                    _operationState.value = SettingsOperationState.Error("Erro ao atualizar o nome")
+                .addOnFailureListener {
+                    _operationState.value = SettingsOperationState.Error("Erro ao atualizar o perfil")
                 }
         }
     }

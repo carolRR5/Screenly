@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import dam_a51568.screenly.data.models.TmdbMediaItem
+import dam_a51568.screenly.data.model.MediaItem
 import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.ui.theme.BackgroundDark
 import dam_a51568.screenly.ui.theme.BrandPurple
@@ -127,7 +127,7 @@ private fun HomeContent(
         Spacer(modifier = Modifier.height(12.dp))
         HorizontalMediaRow(
             items = data.popularMovies,
-            onItemClick = { item -> onItemClick(item.id, "movie") }
+            onItemClick = { item -> onItemClick(item.id, item.mediaType) }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -137,7 +137,7 @@ private fun HomeContent(
         Spacer(modifier = Modifier.height(12.dp))
         HorizontalMediaRow(
             items = data.popularTvShows,
-            onItemClick = { item -> onItemClick(item.id, "tv") }
+            onItemClick = { item -> onItemClick(item.id, item.mediaType) }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -170,7 +170,7 @@ private fun SectionHeader(title: String) {
  */
 @Composable
 private fun TrendingGrid(
-    results: List<TmdbMediaItem>,
+    results: List<MediaItem>,
     onItemClick: (id: Int, mediaType: String) -> Unit
 ) {
     // Altura fixa necessária porque a grelha está num Column com scroll
@@ -203,8 +203,8 @@ private fun TrendingGrid(
  */
 @Composable
 private fun HorizontalMediaRow(
-    items: List<TmdbMediaItem>,
-    onItemClick: (TmdbMediaItem) -> Unit
+    items: List<MediaItem>,
+    onItemClick: (MediaItem) -> Unit
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -228,7 +228,7 @@ private fun HorizontalMediaRow(
  */
 @Composable
 private fun HorizontalMediaCard(
-    item: TmdbMediaItem,
+    item: MediaItem,
     onClick: () -> Unit
 ) {
     Column(
@@ -239,8 +239,8 @@ private fun HorizontalMediaCard(
             .clickable(onClick = onClick)
     ) {
         AsyncImage(
-            model = "${TmdbClient.IMAGE_BASE_URL}${item.posterPath}",
-            contentDescription = item.displayTitle,
+            model = if (item.posterUrl.startsWith("http")) item.posterUrl else "${TmdbClient.IMAGE_BASE_URL}${item.posterUrl}",
+            contentDescription = item.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxWidth()
@@ -249,7 +249,7 @@ private fun HorizontalMediaCard(
 
         Column(modifier = Modifier.padding(8.dp)) {
             Text(
-                text = item.displayTitle,
+                text = item.title,
                 color = TextPrimary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -258,7 +258,7 @@ private fun HorizontalMediaCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = item.displayYear,
+                text = item.year,
                 color = TextSecondary,
                 fontSize = 11.sp
             )
@@ -275,7 +275,7 @@ private fun HorizontalMediaCard(
  */
 @Composable
 private fun TrendingItemCard(
-    item: TmdbMediaItem,
+    item: MediaItem,
     onClick: () -> Unit
 ) {
     Column(
@@ -286,8 +286,8 @@ private fun TrendingItemCard(
     ) {
         Box {
             AsyncImage(
-                model = "${TmdbClient.IMAGE_BASE_URL}${item.posterPath}",
-                contentDescription = item.displayTitle,
+                model = if (item.posterUrl.startsWith("http")) item.posterUrl else "${TmdbClient.IMAGE_BASE_URL}${item.posterUrl}",
+                contentDescription = item.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -314,7 +314,7 @@ private fun TrendingItemCard(
 
         Column(modifier = Modifier.padding(8.dp)) {
             Text(
-                text = item.displayTitle,
+                text = item.title,
                 color = TextPrimary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -323,7 +323,7 @@ private fun TrendingItemCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = item.displayYear,
+                text = item.year,
                 color = TextSecondary,
                 fontSize = 11.sp
             )

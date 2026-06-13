@@ -16,7 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import dam_a51568.screenly.data.models.TmdbMediaItem
+import dam_a51568.screenly.data.model.MediaItem
 import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.ui.theme.CardBackground
 import dam_a51568.screenly.ui.theme.TextPrimary
@@ -32,7 +32,7 @@ import dam_a51568.screenly.ui.theme.TextSecondary
  */
 @Composable
 fun DetailSimilarSection(
-    titles: List<TmdbMediaItem>,
+    titles: List<MediaItem>,
     onItemClick: (id: Int, mediaType: String) -> Unit
 ) {
     Column(
@@ -55,10 +55,9 @@ fun DetailSimilarSection(
             contentPadding = PaddingValues(horizontal = 24.dp)
         ) {
             items(titles) { item ->
-                SimilarTitleCard(
-                    item = item,
-                    onClick = { onItemClick(item.id, item.mediaType) }
-                )
+                SimilarTitleCard(item) {
+                    onItemClick(item.id, item.mediaType)
+                }
             }
         }
 
@@ -75,7 +74,7 @@ fun DetailSimilarSection(
  */
 @Composable
 private fun SimilarTitleCard(
-    item: TmdbMediaItem,
+    item: MediaItem,
     onClick: () -> Unit
 ) {
     Column(
@@ -86,8 +85,8 @@ private fun SimilarTitleCard(
             .clickable(onClick = onClick)
     ) {
         AsyncImage(
-            model = "${TmdbClient.IMAGE_BASE_URL}${item.posterPath}",
-            contentDescription = item.displayTitle,
+            model = if (item.posterUrl.startsWith("http")) item.posterUrl else "${TmdbClient.IMAGE_BASE_URL}${item.posterUrl}",
+            contentDescription = item.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxWidth()
@@ -95,7 +94,7 @@ private fun SimilarTitleCard(
         )
         Column(modifier = Modifier.padding(8.dp)) {
             Text(
-                text = item.displayTitle,
+                text = item.title,
                 color = TextPrimary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -104,7 +103,7 @@ private fun SimilarTitleCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = item.displayYear,
+                text = item.year,
                 color = TextSecondary,
                 fontSize = 10.sp
             )

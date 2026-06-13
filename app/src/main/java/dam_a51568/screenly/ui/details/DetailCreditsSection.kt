@@ -17,8 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import dam_a51568.screenly.data.models.TmdbCastMember
-import dam_a51568.screenly.data.models.TmdbCrewMember
+import dam_a51568.screenly.data.model.CastMember
+import dam_a51568.screenly.data.model.CrewMember
 import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.ui.theme.BackgroundDark
 import dam_a51568.screenly.ui.theme.BrandPurple
@@ -36,8 +36,8 @@ import dam_a51568.screenly.ui.theme.TextSecondary
  */
 @Composable
 fun DetailCreditsSection(
-    cast: List<TmdbCastMember>,
-    crew: List<TmdbCrewMember>
+    cast: List<CastMember>,
+    crew: List<CrewMember>
 ) {
     var selectedTab by remember { mutableStateOf<CreditsTab?>(null) }
 
@@ -80,7 +80,7 @@ fun DetailCreditsSection(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     cast.forEach { member ->
                         CreditsMemberRow(
-                            profilePath = member.profilePath,
+                            profilePath = member.profileUrl,
                             name = member.name,
                             subtitle = member.character
                         )
@@ -92,7 +92,7 @@ fun DetailCreditsSection(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     crew.forEach { member ->
                         CreditsMemberRow(
-                            profilePath = member.profilePath,
+                            profilePath = member.profileUrl,
                             name = member.name,
                             subtitle = "${member.job} • ${member.department}"
                         )
@@ -130,7 +130,7 @@ private fun CreditsMemberRow(
     ) {
         if (profilePath != null) {
             AsyncImage(
-                model = "${TmdbClient.IMAGE_BASE_URL}${profilePath}",
+                model = if (profilePath.startsWith("http")) profilePath else "${TmdbClient.IMAGE_BASE_URL}$profilePath",
                 contentDescription = name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier

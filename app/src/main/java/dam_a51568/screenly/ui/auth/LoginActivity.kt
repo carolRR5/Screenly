@@ -136,7 +136,7 @@ class LoginActivity : AppCompatActivity() {
                     is FirebaseAuthInvalidUserException ->
                         "Não existe nenhuma conta com este email"
                     is FirebaseAuthInvalidCredentialsException ->
-                        "Email ou palavra-passe incorrectos"
+                        "Email ou palavra-passe incorretos"
                     else -> "Erro ao fazer login. Tente novamente."
                 }
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show()

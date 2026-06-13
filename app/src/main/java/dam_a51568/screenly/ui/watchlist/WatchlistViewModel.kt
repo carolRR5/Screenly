@@ -1,8 +1,8 @@
 package dam_a51568.screenly.ui.watchlist
 
 import androidx.lifecycle.ViewModel
-import dam_a51568.screenly.data.repository.WatchStatus
-import dam_a51568.screenly.data.repository.WatchlistItem
+import dam_a51568.screenly.data.model.WatchStatus
+import dam_a51568.screenly.data.model.WatchlistItem
 import dam_a51568.screenly.data.repository.WatchlistRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

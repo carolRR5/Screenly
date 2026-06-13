@@ -1,12 +1,13 @@
-package dam_a51568.screenly.data.remote
+package dam_a51568.screenly.data.remote.api
 
-import dam_a51568.screenly.data.models.TmdbCreditsResponse
-import dam_a51568.screenly.data.models.TmdbGenreResponse
-import dam_a51568.screenly.data.models.TmdbMovieDetails
-import dam_a51568.screenly.data.models.TmdbReviewsResponse
-import dam_a51568.screenly.data.models.TmdbSearchResponse
-import dam_a51568.screenly.data.models.TmdbTvShowDetails
-import dam_a51568.screenly.data.models.TmdbVideosResponse
+import dam_a51568.screenly.data.remote.dto.TmdbCountry
+import dam_a51568.screenly.data.remote.dto.TmdbCreditsResponse
+import dam_a51568.screenly.data.remote.dto.TmdbGenreResponse
+import dam_a51568.screenly.data.remote.dto.TmdbMovieDetails
+import dam_a51568.screenly.data.remote.dto.TmdbReviewsResponse
+import dam_a51568.screenly.data.remote.dto.TmdbSearchResponse
+import dam_a51568.screenly.data.remote.dto.TmdbTvShowDetails
+import dam_a51568.screenly.data.remote.dto.TmdbVideosResponse
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -162,6 +163,12 @@ interface TmdbApiService {
         @Query("api_key") apiKey: String,
         @Query("language") language: String = "pt-PT"
     ): TmdbGenreResponse
+
+    @GET("configuration/countries")
+    suspend fun getCountries(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String = "pt-PT"
+    ): List<TmdbCountry>
 
     /**
      * Descobre filmes com filtros avançados.

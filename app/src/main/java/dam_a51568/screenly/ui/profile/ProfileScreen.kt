@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,9 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import dam_a51568.screenly.data.model.WatchlistItem
 import dam_a51568.screenly.data.remote.TmdbClient
-import dam_a51568.screenly.data.repository.WatchStatus
-import dam_a51568.screenly.data.repository.WatchlistItem
+import dam_a51568.screenly.data.model.WatchStatus
 import dam_a51568.screenly.data.repository.WatchlistRepository
 import dam_a51568.screenly.ui.theme.BackgroundDark
 import dam_a51568.screenly.ui.theme.BrandPurple
@@ -53,6 +54,7 @@ fun ProfileScreen(
 ) {
     val stats = remember { viewModel.calculateStats() }
     val recentRatings = remember { viewModel.getRecentRatings() }
+    val user by viewModel.user.collectAsState()
 
     Column(
         modifier = Modifier
@@ -62,9 +64,9 @@ fun ProfileScreen(
     ) {
         //  Cabeçalho do perfil
         ProfileHeader(
-            displayName = viewModel.displayName,
-            email = viewModel.email,
-            photoUrl = viewModel.photoUrl,
+            displayName = user?.displayName ?: "Utilizador",
+            email = user?.email ?: "",
+            photoUrl = user?.photoUrl,
             memberSince = viewModel.memberSince,
             onSettingsClick = onNavigateToSettings
         )
@@ -76,8 +78,11 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // As minhas listas, botões que navegam para o ecrã de listas
-        ListsButtonsSection(onListClick = onNavigateToLists)
+        // As minhas listas
+        ListsButtonsSection(
+            onListClick = onNavigateToLists,
+            onItemClick = onItemClick
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -264,71 +269,189 @@ private fun StatCard(
 
 /**
  * Secção das listas do utilizador.
- * Apresenta três botões clicáveis que navegam para o ecrã de listas
- * no separador correspondente, mostrando o número de títulos em cada lista.
+ * Apresenta três subsecções (To Watch, Watching, Watched), cada uma com
+ * uma lista horizontal de até 10 pósteres e um botão "›" para ver mais
+ * caso existam mais de 10 títulos.
  *
- * @param onListClick Callback chamado ao clicar num botão, recebendo o estado da lista.
+ * @param onListClick Callback chamado ao clicar em "Ver mais", recebendo o estado da lista.
+ * @param onItemClick Callback chamado ao clicar num título.
  */
 @Composable
-private fun ListsButtonsSection(onListClick: (WatchStatus) -> Unit) {
+private fun ListsButtonsSection(
+    onListClick: (WatchStatus) -> Unit,
+    onItemClick: (id: Int, mediaType: String) -> Unit
+) {
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
         SectionTitle(title = "As minhas listas")
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            WatchStatus.entries.forEach { status ->
-                val count = WatchlistRepository.getByStatus(status).size
-                ListButton(
-                    modifier = Modifier.weight(1f),
-                    label = when (status) {
-                        WatchStatus.TO_WATCH -> "To Watch"
-                        WatchStatus.WATCHING -> "Watching"
-                        WatchStatus.WATCHED -> "Watched"
-                    },
-                    count = count,
-                    onClick = { onListClick(status) }
-                )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        WatchStatus.entries.forEach { status ->
+            val items = WatchlistRepository.getByStatus(status)
+            val label = when (status) {
+                WatchStatus.TO_WATCH -> "To Watch"
+                WatchStatus.WATCHING -> "Watching"
+                WatchStatus.WATCHED -> "Watched"
             }
+
+            ListSection(
+                label = label,
+                items = items,
+                onItemClick = onItemClick,
+                onViewMore = { onListClick(status) }
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
 
 /**
- * Botão individual de uma lista.
- * Mostra o número de títulos em destaque e o nome da lista por baixo.
+ * Subsecção individual de uma lista.
+ * Apresenta o nome da lista, uma linha horizontal com até 10 posters
+ * e um cartão "›" no final se houver mais de 10 títulos.
  *
  * @param label Nome da lista.
- * @param count Número de títulos na lista.
- * @param onClick Callback chamado ao clicar no botão.
- * @param modifier Modifier a aplicar ao botão.
+ * @param items Lista completa de títulos.
+ * @param onItemClick Callback chamado ao clicar num título.
+ * @param onViewMore Callback chamado ao clicar no botão "›".
  */
 @Composable
-private fun ListButton(
+private fun ListSection(
     label: String,
-    count: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    items: List<WatchlistItem>,
+    onItemClick: (id: Int, mediaType: String) -> Unit,
+    onViewMore: () -> Unit
+) {
+    val maxVisible = 10
+
+    Column {
+        // Nome da lista com contador
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                color = TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "${items.size} títulos",
+                color = TextSecondary,
+                fontSize = 13.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (items.isEmpty()) {
+            // Estado vazio
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .background(CardBackground, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Nenhum título nesta lista",
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
+            }
+        } else {
+            // Lista horizontal com posters
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Mostra até 10 títulos
+                val visibleItems = items.take(maxVisible)
+                visibleItems.forEach { watchlistItem ->
+                    item {
+                        ListPosterCard(
+                            item = watchlistItem,
+                            onClick = { onItemClick(watchlistItem.id, watchlistItem.mediaType) }
+                        )
+                    }
+                }
+
+                // Botão "›" apenas se houver mais de 10 títulos
+                if (items.size > maxVisible) {
+                    item {
+                        ViewMoreCard(onClick = onViewMore)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        HorizontalDivider(color = CardBackground, thickness = 1.dp)
+    }
+}
+
+/**
+ * Cartão individual de um póster na lista horizontal.
+ *
+ * @param item Dados do título na watchlist.
+ * @param onClick Callback chamado ao clicar no cartão.
+ */
+@Composable
+private fun ListPosterCard(
+    item: WatchlistItem,
+    onClick: () -> Unit
 ) {
     Column(
-        modifier = modifier
-            .background(CardBackground, RoundedCornerShape(12.dp))
+        modifier = Modifier
+            .width(100.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(CardBackground)
             .clickable(onClick = onClick)
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AsyncImage(
+            model = "${TmdbClient.IMAGE_BASE_URL}${item.posterPath}",
+            contentDescription = item.title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(2f / 3f)
+        )
+        Text(
+            text = item.title,
+            color = TextPrimary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(6.dp)
+        )
+    }
+}
+
+/**
+ * Cartão "›" que aparece no final da lista horizontal quando há mais de 10 títulos.
+ * Ao clicar, navega para o ecrã de listas completo.
+ *
+ * @param onClick Callback chamado ao clicar no cartão.
+ */
+@Composable
+private fun ViewMoreCard(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .width(60.dp)
+            .height(50.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(CardBackground)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
         Text(
-            text = count.toString(),
+            text = "›",
             color = BrandPurple,
-            fontSize = 24.sp,
+            fontSize = 35.sp,
             fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label,
-            color = TextSecondary,
-            fontSize = 12.sp
         )
     }
 }

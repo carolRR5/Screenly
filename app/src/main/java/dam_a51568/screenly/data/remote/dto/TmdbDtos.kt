@@ -1,6 +1,8 @@
-package dam_a51568.screenly.data.models
+package dam_a51568.screenly.data.remote.dto
 
 import com.google.gson.annotations.SerializedName
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 // Representa a resposta da API do TMDb. Contém a lista de resultados devolvidos pela pesquisa.
 data class TmdbSearchResponse(
@@ -128,6 +130,12 @@ data class TmdbGenre(
     @SerializedName("name") val name: String
 )
 
+data class TmdbCountry(
+    @SerializedName("iso_3166_1") val code: String,  // ex: "PT", "US"
+    @SerializedName("english_name") val englishName: String,
+    @SerializedName("native_name") val nativeName: String
+)
+
 /**
  * Representa a resposta da API ao endpoint de géneros.
  * Contém a lista de géneros disponíveis para filmes ou séries.
@@ -201,13 +209,13 @@ data class TmdbReview(
      */
     val formattedDate: String
         get() = try {
-            val inputFormat = java.text.SimpleDateFormat(
+            val inputFormat = SimpleDateFormat(
                 "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-                java.util.Locale.getDefault()
+                Locale.getDefault()
             )
-            val outputFormat = java.text.SimpleDateFormat(
+            val outputFormat = SimpleDateFormat(
                 "MMMM yyyy",
-                java.util.Locale("pt", "PT")
+                Locale("pt", "PT")
             )
             val date = inputFormat.parse(createdAt)
             if (date != null) outputFormat.format(date) else ""

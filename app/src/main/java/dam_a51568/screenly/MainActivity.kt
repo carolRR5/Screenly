@@ -16,7 +16,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
-import dam_a51568.screenly.data.repository.WatchStatus
+import dam_a51568.screenly.data.model.WatchStatus
 import dam_a51568.screenly.ui.browse.BrowseFilter
 import dam_a51568.screenly.ui.browse.BrowseResultsScreen
 import dam_a51568.screenly.ui.browse.CountryScreen

@@ -13,7 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import dam_a51568.screenly.data.repository.WatchStatus
+import dam_a51568.screenly.data.model.WatchStatus
 import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.ui.theme.BrandPurple
 import dam_a51568.screenly.ui.theme.CardBackground
@@ -93,7 +93,7 @@ fun DetailMainInfo(
 
             if (data.genres.isNotEmpty()) {
                 Text(
-                    text = data.genres.joinToString(" • ") { it.name },
+                    text = data.genres.joinToString(" • "),
                     color = BrandPurple,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium

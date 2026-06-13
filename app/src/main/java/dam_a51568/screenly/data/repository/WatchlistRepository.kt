@@ -1,31 +1,9 @@
 package dam_a51568.screenly.data.repository
 
 import androidx.compose.runtime.mutableStateListOf
+import dam_a51568.screenly.data.model.WatchStatus
+import dam_a51568.screenly.data.model.WatchlistItem
 
-/**
- * Estado de um título na watchlist do utilizador.
- */
-enum class WatchStatus {
-    TO_WATCH,
-    WATCHING,
-    WATCHED
-}
-
-/**
- * Representa um item guardado na watchlist do utilizador em memória.
- * Inclui os dados essenciais do título e o estado actual de visualização.
- */
-data class WatchlistItem(
-    val id: Int,
-    val mediaType: String,       // "movie" ou "tv"
-    val title: String,
-    val posterPath: String?,
-    val year: String,
-    val genres: String,
-    val status: WatchStatus,
-    val rating: Float? = null,   // Classificação de 0.5 a 5.0 (apenas para WATCHED)
-    val review: String? = null   // Nota pessoal (apenas para WATCHED)
-)
 
 /**
  * Repositório singleton que gere as listas pessoais do utilizador em memória RAM.

@@ -3,8 +3,9 @@ package dam_a51568.screenly.ui.browse
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import dam_a51568.screenly.data.models.TmdbMediaItem
+import dam_a51568.screenly.data.model.MediaItem
 import dam_a51568.screenly.data.remote.TmdbClient
+import dam_a51568.screenly.data.repository.toMediaItem
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,7 +32,7 @@ enum class BrowseFilter {
 sealed class BrowseUiState {
     data object Loading : BrowseUiState()
     data class Error(val message: String) : BrowseUiState()
-    data class Success(val results: List<TmdbMediaItem>) : BrowseUiState()
+    data class Success(val results: List<MediaItem>) : BrowseUiState()
 }
 
 /**
@@ -99,14 +100,14 @@ class BrowseResultsViewModel(
 
                 val movies = moviesDeferred.await().results
                     .filter { it.posterPath != null }
-                    .map { it.copy(mediaType = "movie") }
+                    .map { it.copy(mediaType = "movie").toMediaItem() }
 
                 val tvShows = tvDeferred.await().results
                     .filter { it.posterPath != null }
-                    .map { it.copy(mediaType = "tv") }
+                    .map { it.copy(mediaType = "tv").toMediaItem() }
 
                 // Intercala filmes e séries para variedade nos resultados
-                val combined = mutableListOf<TmdbMediaItem>()
+                val combined = mutableListOf<MediaItem>()
                 val maxSize = maxOf(movies.size, tvShows.size)
                 for (i in 0 until maxSize) {
                     if (i < movies.size) combined.add(movies[i])
