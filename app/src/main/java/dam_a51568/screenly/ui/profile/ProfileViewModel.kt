@@ -1,6 +1,7 @@
 package dam_a51568.screenly.ui.profile
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import dam_a51568.screenly.data.model.User
 import dam_a51568.screenly.data.model.WatchStatus
@@ -8,46 +9,91 @@ import dam_a51568.screenly.data.model.WatchlistItem
 import dam_a51568.screenly.data.repository.UserRepository
 import dam_a51568.screenly.data.repository.WatchlistRepository
 import dam_a51568.screenly.data.repository.toUser
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Representa as estatísticas do utilizador calculadas a partir da watchlist.
- *
- * @param totalWatched Total de títulos marcados como vistos.
- * @param totalHours Total de horas de conteúdo visto (calculado a partir da duração).
- * @param averageRating Média das classificações atribuídas pelo utilizador.
- * @param favoriteGenre Género mais frequente nos títulos vistos, ou null se não houver dados.
  */
 data class UserStats(
-    val totalWatched: Int,
-    val totalHours: Int,
-    val averageRating: Float,
-    val favoriteGenre: String?
+    val totalWatched: Int = 0,
+    val totalHours: Int = 0,
+    val averageRating: Float = 0f,
+    val favoriteGenre: String? = null
 )
+
+/**
+ * Estados possíveis do upload da foto de perfil.
+ */
+sealed class PhotoUploadState {
+    data object Idle : PhotoUploadState()
+    data object Loading : PhotoUploadState()
+    data object Success : PhotoUploadState()
+    data class Error(val message: String) : PhotoUploadState()
+}
 
 /**
  * ViewModel do ecrã de Perfil.
  *
- * Fornece os dados do utilizador autenticado (nome, email, foto, data de registo)
- * a partir do Firebase Auth, e calcula as estatísticas da watchlist em memória.
+ * Gere o estado do utilizador, as estatísticas de visualização e o upload da foto de perfil.
  */
 class ProfileViewModel : ViewModel() {
-
     private val auth = FirebaseAuth.getInstance()
+    private val userId = auth.currentUser?.uid ?: ""
 
-    /** Dados do utilizador vindos da Firestore (em tempo real). */
+    // Dados do utilizador vindos da Firestore em tempo real.
     private val _user = MutableStateFlow<User?>(auth.currentUser?.toUser())
     val user: StateFlow<User?> = _user.asStateFlow()
 
+    // Estado do upload da foto de perfil.
+    private val _photoUploadState = MutableStateFlow<PhotoUploadState>(PhotoUploadState.Idle)
+    val photoUploadState: StateFlow<PhotoUploadState> = _photoUploadState.asStateFlow()
+
+    /**
+     * Estatísticas calculadas a partir da watchlist em memória.
+     * Como o WatchlistRepository.items é uma SnapshotStateList (mutableStateListOf),
+     * podemos usá-lo diretamente no Compose ou converter para um Flow.
+     */
+    fun getStats(): UserStats {
+        val watched = WatchlistRepository.getByStatus(WatchStatus.WATCHED)
+        val totalWatched = watched.size
+        val totalHours = (totalWatched * 100) / 60
+        val ratings = watched.mapNotNull { it.rating }
+        val averageRating = if (ratings.isNotEmpty()) ratings.average().toFloat() else 0f
+
+        val favoriteGenre = watched
+            .flatMap { it.genres.split(", ") }
+            .filter { it.isNotBlank() }
+            .groupingBy { it }
+            .eachCount()
+            .maxByOrNull { it.value }
+            ?.key
+
+        return UserStats(totalWatched, totalHours, averageRating, favoriteGenre)
+    }
+
+    /**
+     * Devolve as 5 avaliações mais recentes.
+     */
+    fun getRecentRatings(): List<WatchlistItem> {
+        return WatchlistRepository.getByStatus(WatchStatus.WATCHED)
+            .filter { it.rating != null }
+            .sortedByDescending { it.addedAt }
+            .take(5)
+    }
+
     init {
-        // Começa a observar os dados na Firestore assim que o ViewModel é criado
-        val uid = auth.currentUser?.uid
-        if (uid != null) {
-            UserRepository.getUser(uid) { firestoreUser ->
+        if (userId.isNotEmpty()) {
+            UserRepository.getUser(userId) { firestoreUser ->
                 if (firestoreUser != null) {
-                    _user.value = firestoreUser
+                    val authUser = auth.currentUser?.toUser()
+                    _user.value = firestoreUser.copy(
+                        displayName = firestoreUser.displayName?.takeIf { it.isNotBlank() } ?: authUser?.displayName,
+                        email = firestoreUser.email?.takeIf { it.isNotBlank() } ?: authUser?.email,
+                        photoUrl = firestoreUser.photoUrl ?: authUser?.photoUrl
+                    )
                 }
             }
         }
@@ -55,7 +101,6 @@ class ProfileViewModel : ViewModel() {
 
     /**
      * Data de criação da conta no Firebase Auth, formatada como string.
-     * Usada para mostrar "Membro desde..." no perfil.
      */
     val memberSince: String
         get() {
@@ -66,79 +111,45 @@ class ProfileViewModel : ViewModel() {
         }
 
     /**
-     * Separador atualmente selecionado na secção das listas do perfil.
-     * Por defeito mostra a lista "Watched".
+     * Processa e faz upload da foto de perfil selecionada pelo utilizador.
      */
-    private val _selectedTab = MutableStateFlow(WatchStatus.WATCHED)
-    val selectedTab: StateFlow<WatchStatus> = _selectedTab.asStateFlow()
+    fun uploadProfilePhoto(imageBytes: ByteArray) {
+        if (userId.isEmpty()) return
 
-    /**
-     * Altera o separador ativo na secção das listas.
-     *
-     * @param status Estado de visualização correspondente ao separador selecionado.
-     */
-    fun selectTab(status: WatchStatus) {
-        _selectedTab.value = status
+        viewModelScope.launch {
+            _photoUploadState.value = PhotoUploadState.Loading
+
+            try {
+                // Comprime e codifica a imagem em background
+                val base64 = withContext(Dispatchers.IO) {
+                    UserRepository.compressAndEncodeImage(imageBytes)
+                }
+
+                // Guarda no Firestore
+                UserRepository.updateProfilePhoto(
+                    uid = userId,
+                    photoBase64 = base64,
+                    onSuccess = {
+                        _photoUploadState.value = PhotoUploadState.Success
+                    },
+                    onError = { exception ->
+                        _photoUploadState.value = PhotoUploadState.Error(
+                            exception.message ?: "Erro ao guardar a foto"
+                        )
+                    }
+                )
+            } catch (e: Exception) {
+                _photoUploadState.value = PhotoUploadState.Error(
+                    e.message ?: "Erro ao processar a imagem"
+                )
+            }
+        }
     }
 
     /**
-     * Devolve os itens da watchlist filtrados pelo estado especificado.
-     *
-     * @param status Estado de visualização pelo qual filtrar.
-     * @return Lista de itens com o estado correspondente.
+     * Repõe o estado do upload para Idle.
      */
-    fun getItemsByStatus(status: WatchStatus): List<WatchlistItem> =
-        WatchlistRepository.getByStatus(status)
-
-    /**
-     * Calcula as estatísticas do utilizador a partir dos títulos marcados como vistos.
-     *
-     * - Total de títulos vistos
-     * - Total de horas (estimativa baseada em 100 min por título)
-     * - Média das classificações atribuídas
-     * - Género mais frequente nos títulos vistos
-     *
-     * @return Objecto [UserStats] com as estatísticas calculadas.
-     */
-    fun calculateStats(): UserStats {
-        val watched = WatchlistRepository.getByStatus(WatchStatus.WATCHED)
-
-        val totalWatched = watched.size
-
-        // Estimativa de horas — será mais precisa após migração para Firestore
-        // onde poderemos guardar a duração real de cada título
-        val totalMinutes = totalWatched * 100
-        val totalHours = totalMinutes / 60
-
-        val ratings = watched.mapNotNull { it.rating }
-        val averageRating = if (ratings.isNotEmpty()) ratings.average().toFloat() else 0f
-
-        // Calcula o género mais frequente nos títulos vistos
-        val favoriteGenre = watched
-            .flatMap { it.genres.split(", ") }
-            .filter { it.isNotBlank() }
-            .groupingBy { it }
-            .eachCount()
-            .maxByOrNull { it.value }
-            ?.key
-
-        return UserStats(
-            totalWatched = totalWatched,
-            totalHours = totalHours,
-            averageRating = averageRating,
-            favoriteGenre = favoriteGenre
-        )
+    fun resetPhotoUploadState() {
+        _photoUploadState.value = PhotoUploadState.Idle
     }
-
-    /**
-     * Devolve os últimos 5 títulos avaliados pelo utilizador,
-     * ordenados do mais recente para o mais antigo.
-     *
-     * @return Lista de até 5 itens com classificação atribuída.
-     */
-    fun getRecentRatings(): List<WatchlistItem> =
-        WatchlistRepository.getByStatus(WatchStatus.WATCHED)
-            .filter { it.rating != null }
-            .takeLast(5)
-            .reversed()
 }

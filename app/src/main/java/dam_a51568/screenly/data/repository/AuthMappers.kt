@@ -11,7 +11,7 @@ import dam_a51568.screenly.data.model.User
 fun FirebaseUser.toUser(): User {
     return User(
         uid = this.uid,
-        email = this.email ?: "",
+        email = this.email,
         displayName = this.displayName ?: "Utilizador",
         photoUrl = this.photoUrl?.toString()
     )

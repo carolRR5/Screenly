@@ -27,6 +27,10 @@ import dam_a51568.screenly.data.model.WatchlistItem
 import dam_a51568.screenly.data.remote.TmdbClient
 import dam_a51568.screenly.data.model.WatchStatus
 import dam_a51568.screenly.data.repository.WatchlistRepository
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.Face
+import androidx.compose.ui.graphics.asImageBitmap
 import dam_a51568.screenly.ui.theme.BackgroundDark
 import dam_a51568.screenly.ui.theme.BrandPurple
 import dam_a51568.screenly.ui.theme.CardBackground
@@ -50,51 +54,85 @@ fun ProfileScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToLists: (WatchStatus) -> Unit,
     onItemClick: (id: Int, mediaType: String) -> Unit,
-    viewModel: ProfileViewModel = viewModel()
+    viewModel: ProfileViewModel = viewModel(),
 ) {
-    val stats = remember { viewModel.calculateStats() }
-    val recentRatings = remember { viewModel.getRecentRatings() }
     val user by viewModel.user.collectAsState()
+    val photoUploadState by viewModel.photoUploadState.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundDark)
-            .verticalScroll(rememberScrollState())
-    ) {
-        //  Cabeçalho do perfil
-        ProfileHeader(
-            displayName = user?.displayName ?: "Utilizador",
-            email = user?.email ?: "",
-            photoUrl = user?.photoUrl,
-            memberSince = viewModel.memberSince,
-            onSettingsClick = onNavigateToSettings
-        )
+    // Estatísticas e avaliações recentes recalculadas quando a watchlist muda
+    val stats = remember(WatchlistRepository.items) { viewModel.getStats() }
+    val recentRatings = remember(WatchlistRepository.items) { viewModel.getRecentRatings() }
 
-        Spacer(modifier = Modifier.height(24.dp))
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            // Lê os bytes da imagem selecionada
+            val inputStream = context.contentResolver.openInputStream(it)
+            val imageBytes = inputStream?.readBytes()
+            inputStream?.close()
+            imageBytes?.let {
+                viewModel.uploadProfilePhoto(it)
+            }
+        }
+    }
 
-        // Estatísticas
-        StatsSection(stats = stats)
+    // Snackbar para feedback do upload
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(photoUploadState) {
+        when (val state = photoUploadState) {
+            is PhotoUploadState.Success -> {
+                snackbarHostState.showSnackbar("Foto de perfil atualizada!")
+                viewModel.resetPhotoUploadState()
+            }
+            is PhotoUploadState.Error -> {
+                snackbarHostState.showSnackbar(state.message)
+                viewModel.resetPhotoUploadState()
+            }
+            else -> {}
+        }
+    }
 
-        Spacer(modifier = Modifier.height(24.dp))
+    Scaffold(
+        containerColor = BackgroundDark,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(BackgroundDark)
+                .verticalScroll(rememberScrollState())
+        ) {
+            ProfileHeader(
+                displayName = user?.displayName?.takeIf { it.isNotBlank() } ?: "Utilizador",
+                email = user?.email?.takeIf { it.isNotBlank() } ?: "",
+                photoBase64 = user?.photoBase64,
+                photoUrl = user?.photoUrl,
+                memberSince = viewModel.memberSince,
+                onSettingsClick = onNavigateToSettings,
+                isUploadingPhoto = photoUploadState is PhotoUploadState.Loading,
+                onChangePhoto = { launcher.launch("image/*") }
+            )
 
-        // As minhas listas
-        ListsButtonsSection(
-            onListClick = onNavigateToLists,
-            onItemClick = onItemClick
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Avaliações recentes
-        if (recentRatings.isNotEmpty()) {
-            SectionTitle(title = "Avaliações recentes")
-            Spacer(modifier = Modifier.height(12.dp))
-            RecentRatingsSection(
-                ratings = recentRatings,
+            Spacer(modifier = Modifier.height(24.dp))
+            StatsSection(stats = stats)
+            Spacer(modifier = Modifier.height(24.dp))
+            ListsButtonsSection(
+                onListClick = onNavigateToLists,
                 onItemClick = onItemClick
             )
             Spacer(modifier = Modifier.height(24.dp))
+            if (recentRatings.isNotEmpty()) {
+                SectionTitle(title = "Avaliações recentes")
+                Spacer(modifier = Modifier.height(12.dp))
+                RecentRatingsSection(
+                    ratings = recentRatings,
+                    onItemClick = onItemClick
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
     }
 }
@@ -106,9 +144,12 @@ fun ProfileScreen(
 private fun ProfileHeader(
     displayName: String,
     email: String,
+    photoBase64: String?,
     photoUrl: String?,
     memberSince: String,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    isUploadingPhoto: Boolean,
+    onChangePhoto: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -122,8 +163,11 @@ private fun ProfileHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ProfilePhoto(
+                photoBase64 = photoBase64,
                 photoUrl = photoUrl,
-                displayName = displayName
+                displayName = displayName,
+                isUploading = isUploadingPhoto,
+                onChangePhoto = onChangePhoto
             )
 
             Column {
@@ -165,33 +209,96 @@ private fun ProfileHeader(
  */
 @Composable
 private fun ProfilePhoto(
+    photoBase64: String?,
     photoUrl: String?,
-    displayName: String
+    displayName: String,
+    isUploading: Boolean,
+    onChangePhoto: () -> Unit
 ) {
-    if (photoUrl != null) {
-        AsyncImage(
-            model = photoUrl,
-            contentDescription = "Foto de perfil",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(140.dp)
-                .clip(CircleShape)
-                .border(2.dp, BrandPurple, CircleShape)
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .size(110.dp)
-                .clip(CircleShape)
-                .background(BrandPurple),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
-                color = TextPrimary,
-                fontSize = 44.sp,
-                fontWeight = FontWeight.Bold
-            )
+    Box(
+        modifier = Modifier
+            .size(110.dp)
+            .clickable(onClick = onChangePhoto),
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            // Mostra a foto em Base64 do Firestore
+            photoBase64 != null -> {
+                val imageBytes = android.util.Base64.decode(photoBase64, android.util.Base64.DEFAULT)
+                val bitmap = android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                val imageBitmap = bitmap.asImageBitmap()
+                androidx.compose.foundation.Image(
+                    bitmap = imageBitmap,
+                    contentDescription = "Foto de perfil",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(110.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, BrandPurple, CircleShape)
+                )
+            }
+            // Fallback para o photoUrl do Firebase Auth
+            photoUrl != null -> {
+                AsyncImage(
+                    model = photoUrl,
+                    contentDescription = "Foto de perfil",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(110.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, BrandPurple, CircleShape)
+                )
+            }
+            // Placeholder com inicial do nome
+            else -> {
+                Box(
+                    modifier = Modifier
+                        .size(110.dp)
+                        .clip(CircleShape)
+                        .background(BrandPurple),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "?",
+                        color = TextPrimary,
+                        fontSize = 44.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Indicador de carregamento durante o upload
+        if (isUploading) {
+            Box(
+                modifier = Modifier
+                    .size(110.dp)
+                    .clip(CircleShape)
+                    .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = BrandPurple,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        } else {
+            // Ícone de câmara sobreposto na parte inferior
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(BrandPurple),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Face,
+                    contentDescription = "Alterar foto",
+                    tint = androidx.compose.ui.graphics.Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }
@@ -307,7 +414,7 @@ private fun ListsButtonsSection(
 
 /**
  * Subsecção individual de uma lista.
- * Apresenta o nome da lista, uma linha horizontal com até 10 posters
+ * Apresenta o nome da lista, uma linha horizontal com até 10 pósteres
  * e um cartão "›" no final se houver mais de 10 títulos.
  *
  * @param label Nome da lista.
@@ -362,7 +469,7 @@ private fun ListSection(
                 )
             }
         } else {
-            // Lista horizontal com posters
+            // Lista horizontal com pósteres
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
