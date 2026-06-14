@@ -3,7 +3,7 @@
 **Course:** Desenvolvimento de Aplicações Móveis (DAM) <br>
 **Student:** Carolina Raposo (n.º 51568) <br>
 **Date:** 14/06/2026 <br>
-**Repository URL:** 
+**Repository URL:** https://github.com/carolRR5/Screenly
 
 ---
 
