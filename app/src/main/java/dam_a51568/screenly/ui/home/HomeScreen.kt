@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,20 +45,33 @@ import kotlin.math.ceil
  * @param onItemClick Callback chamado quando o utilizador clica num título.
  * @param viewModel ViewModel que gere o estado do ecrã.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onItemClick: (id: Int, mediaType: String) -> Unit,
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
 
-    when (val state = uiState) {
-        is HomeUiState.Loading -> LoadingContent()
-        is HomeUiState.Error -> ErrorContent(message = state.message)
-        is HomeUiState.Success -> HomeContent(
-            data = state.data,
-            onItemClick = onItemClick
-        )
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = { viewModel.refresh() },
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundDark)
+    ) {
+        when (val state = uiState) {
+            is HomeUiState.Loading -> LoadingContent()
+            is HomeUiState.Error -> ErrorContent(
+                message = state.message,
+                onRetry = { viewModel.refresh() }
+            )
+            is HomeUiState.Success -> HomeContent(
+                data = state.data,
+                onItemClick = onItemClick
+            )
+        }
     }
 }
 
@@ -67,9 +81,7 @@ fun HomeScreen(
 @Composable
 private fun LoadingContent() {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundDark),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator(color = BrandPurple)
@@ -78,18 +90,22 @@ private fun LoadingContent() {
 
 /**
  * Conteúdo apresentado quando ocorre um erro ao carregar os dados.
- *
- * @param message Mensagem de erro a apresentar ao utilizador.
  */
 @Composable
-private fun ErrorContent(message: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundDark),
-        contentAlignment = Alignment.Center
+private fun ErrorContent(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(text = message, color = ErrorRed, fontSize = 16.sp)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(containerColor = BrandPurple)
+        ) {
+            Text("Tentar Novamente")
+        }
     }
 }
 
