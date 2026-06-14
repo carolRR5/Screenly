@@ -28,23 +28,24 @@ class LoginActivity : AppCompatActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+        super.onCreate(savedInstanceState) // Chama a implementação da superclasse, obrigatório no ciclo de vida de uma Activity
 
+        // Inicialização do FirebaseAuth (camada de autenticação)
         auth = FirebaseAuth.getInstance()
 
         // Verifica se já existe uma sessão ativa antes de carregar o ecrã.
         // Se sim, navega diretamente para a MainActivity e termina esta Activity, para que
         // o utilizador não precise de fazer login novamente.
         if (auth.currentUser != null) {
-            navigateToMain()
-            return
+            navigateToMain()  // Já há um utilizador autenticado, salta o ecrã de login
+            return // Termina a execução de onCreate para não carregar o layout de login
         }
 
         // Carrega o layout XML via View Biding e define-o como o conteúdo desta Activity
         binding = ActivityLoginBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        setContentView(binding.root)  // Define a view raiz do binding como o conteúdo visual desta Activity
 
-        setupClickListeners()
+        setupClickListeners() // Configuração dos eventos de UI (cliques nos botões e links)
     }
 
     /**
@@ -53,18 +54,20 @@ class LoginActivity : AppCompatActivity() {
      * - Texto "Não tem conta?": navega para o ecrã de Registo.
      */
     private fun setupClickListeners() {
-        // Botão de Login
+        // Botão de Login (Evento de autenticação)
         binding.buttonLogin.setOnClickListener {
-            val email = binding.editTextEmail.text.toString().trim()
-            val password = binding.editTextPassword.text.toString()
+            val email = binding.editTextEmail.text.toString().trim() // Lê o texto do campo de email, remove espaços em branco no início/fim
+            val password = binding.editTextPassword.text.toString()  // Lê o texto do campo de palavra-passe (sem trim, pois espaços podem ser válidos)
 
+            // Validação local antes de contactar Firebase (reduz chamadas desnecessárias)
             if (validateInputs(email, password)) {
-                performLogin(email, password)
+                performLogin(email, password)  // Campos válidos, tenta efetuar o login
             }
         }
 
         // Link para o ecrã de Registo
         binding.textViewGoToRegister.setOnClickListener {
+            // Abre a RegisterActivity através de um Intent explícito
             startActivity(Intent(this, RegisterActivity::class.java))
         }
     }
@@ -83,12 +86,15 @@ class LoginActivity : AppCompatActivity() {
      * @return 'true' se ambos os campos são válidos, 'false' caso contrário.
      */
     private fun validateInputs(email: String, password: String): Boolean {
-        var isValid = true
+        var isValid = true // Flag que acumula o resultado geral da validação
 
+        // Validação de email
         if (email.isEmpty()) {
+            // Campo de email vazio, define mensagem de erro no TextInputLayout
             binding.textInputEmail.error = "O email não pode estar vazio"
             isValid = false
         } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            // Email não corresponde ao padrão regex de um endereço de email válido
             binding.textInputEmail.error = "Introduza um email válido"
             isValid = false
         } else {
@@ -96,16 +102,21 @@ class LoginActivity : AppCompatActivity() {
             binding.textInputEmail.error = null
         }
 
+        // Validação de password
         if (password.isEmpty()) {
+            // Campo de palavra-passe vazio
             binding.textInputPassword.error = "A palavra-passe não pode estar vazia"
             isValid = false
         } else if (password.length < 6) {
+            // Palavra-passe abaixo do tamanho mínimo exigido pelo Firebase (6 caracteres)
             binding.textInputPassword.error = "A palavra-passe deve ter pelo menos 6 caracteres"
             isValid = false
         } else {
+            // Limpa o erro caso o campo tenha sido corrigido pelo utilizador
             binding.textInputPassword.error = null
         }
 
+        // Devolve o resultado. True só se ambos os campos passarem a validação
         return isValid
     }
 
@@ -123,22 +134,32 @@ class LoginActivity : AppCompatActivity() {
      * - Outras mensagens de erro geral.
      */
     private fun performLogin(email: String, password: String) {
-        setLoading(true)
+        setLoading(true) // Ativa o estado de loading (mostra ProgressBar e desativa o botão)
 
+        // Chama o Firebase para autenticar com email e palavra-passe (operação assíncrona)
         auth.signInWithEmailAndPassword(email, password)
             .addOnSuccessListener {
+                // Login bem-sucedido, navega para MainActivity
+                // Desativa o estado de loading
                 setLoading(false)
                 navigateToMain()
             }
             .addOnFailureListener { exception ->
+                // Desativa o estado de loading mesmo em caso de erro
                 setLoading(false)
+                // Tratamento de erros mais específicos do Firebase
                 val message = when (exception) {
                     is FirebaseAuthInvalidUserException ->
+                        // Não existe nenhuma conta registada com o email introduzido
                         "Não existe nenhuma conta com este email"
                     is FirebaseAuthInvalidCredentialsException ->
+                        // Email mal formatado ou palavra-passe incorreta
                         "Email ou palavra-passe incorretos"
-                    else -> "Erro ao fazer login. Tente novamente."
+                    else ->
+                        // Qualquer outro erro (rede, servidor, etc.)
+                        "Erro ao fazer login. Tente novamente."
                 }
+                // Mostra a mensagem de erro ao utilizador através de um Toast
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show()
             }
     }
@@ -151,7 +172,9 @@ class LoginActivity : AppCompatActivity() {
      * @param isLoading 'true' para ativar o estado de carregamento, 'false' para desativar.
      */
     private fun setLoading(isLoading: Boolean) {
+        // Mostra a ProgressBar enquanto isLoading for true, esconde-a caso contrário
         binding.progressBarLogin.visibility = if (isLoading) View.VISIBLE else View.GONE
+        // Desativa o botão de login durante o carregamento, para evitar submissões duplicadas
         binding.buttonLogin.isEnabled = !isLoading
     }
 
@@ -163,11 +186,14 @@ class LoginActivity : AppCompatActivity() {
      * ao carregar no botão "Trás" do dispositivo.
      */
     private fun navigateToMain() {
+        // Cria o Intent para abrir a MainActivity
         val intent = Intent(this, MainActivity::class.java).apply {
             // Limpa a back stack para que o utilizador não volte ao Login ao carregar em "Trás"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
+        // Inicia a MainActivity com as flags definidas
         startActivity(intent)
+        // Termina esta Activity (Login) para libertar memória e impedir voltar atrás
         finish()
     }
 }
