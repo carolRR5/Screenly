@@ -78,7 +78,6 @@ interface TmdbApiService {
 
     /**
      * Obtém os filmes mais populares atualmente.
-     * Endpoint: GET /movie/popular
      *
      * @param apiKey Chave de autenticação da API do TMDb.
      * @param language Idioma dos resultados (por defeito português de Portugal).
@@ -92,7 +91,6 @@ interface TmdbApiService {
 
     /**
      * Obtém as séries mais populares atualmente.
-     * Endpoint: GET /tv/popular
      *
      * @param apiKey Chave de autenticação da API do TMDb.
      * @param language Idioma dos resultados (por defeito português de Portugal).
@@ -106,7 +104,6 @@ interface TmdbApiService {
 
     /**
      * Obtém o elenco e a crew de um filme.
-     * Endpoint: GET /movie/{id}/credits
      *
      * @param id Identificador único do filme no TMDb.
      * @param apiKey Chave de autenticação da API do TMDb.
@@ -122,7 +119,6 @@ interface TmdbApiService {
 
     /**
      * Obtém o elenco e a crew de uma série.
-     * Endpoint: GET /tv/{id}/credits
      *
      * @param id Identificador único da série no TMDb.
      * @param apiKey Chave de autenticação da API do TMDb.
@@ -138,7 +134,6 @@ interface TmdbApiService {
 
     /**
      * Obtém os géneros disponíveis para filmes.
-     * Endpoint: GET /genre/movie/list
      *
      * @param apiKey Chave de autenticação da API do TMDb.
      * @param language Idioma dos resultados.
@@ -152,7 +147,6 @@ interface TmdbApiService {
 
     /**
      * Obtém os géneros disponíveis para séries.
-     * Endpoint: GET /genre/tv/list
      *
      * @param apiKey Chave de autenticação da API do TMDb.
      * @param language Idioma dos resultados.
@@ -164,15 +158,8 @@ interface TmdbApiService {
         @Query("language") language: String = "pt-PT"
     ): TmdbGenreResponse
 
-    @GET("configuration/countries")
-    suspend fun getCountries(
-        @Query("api_key") apiKey: String,
-        @Query("language") language: String = "pt-PT"
-    ): List<TmdbCountry>
-
     /**
      * Descobre filmes com filtros avançados.
-     * Endpoint: GET /discover/movie
      *
      * @param apiKey Chave de autenticação da API do TMDb.
      * @param language Idioma dos resultados.
@@ -194,7 +181,6 @@ interface TmdbApiService {
 
     /**
      * Descobre séries com filtros avançados.
-     * Endpoint: GET /discover/tv
      *
      * @param apiKey Chave de autenticação da API do TMDb.
      * @param language Idioma dos resultados.
@@ -216,7 +202,6 @@ interface TmdbApiService {
 
     /**
      * Obtém os vídeos associados a um filme, incluindo trailers do YouTube.
-     * Endpoint: GET /movie/{id}/videos
      *
      * @param id Identificador único do filme no TMDb.
      * @param apiKey Chave de autenticação da API do TMDb.
@@ -232,7 +217,6 @@ interface TmdbApiService {
 
     /**
      * Obtém os vídeos associados a uma série, incluindo trailers do YouTube.
-     * Endpoint: GET /tv/{id}/videos
      *
      * @param id Identificador único da série no TMDb.
      * @param apiKey Chave de autenticação da API do TMDb.
@@ -248,7 +232,6 @@ interface TmdbApiService {
 
     /**
      * Obtém as reviews de um filme paginadas.
-     * Endpoint: GET /movie/{id}/reviews
      *
      * @param id Identificador único do filme no TMDb.
      * @param apiKey Chave de autenticação da API do TMDb.
@@ -266,7 +249,6 @@ interface TmdbApiService {
 
     /**
      * Obtém as reviews de uma série paginadas.
-     * Endpoint: GET /tv/{id}/reviews
      *
      * @param id Identificador único da série no TMDb.
      * @param apiKey Chave de autenticação da API do TMDb.
@@ -283,8 +265,7 @@ interface TmdbApiService {
     ): TmdbReviewsResponse
 
     /**
-     * Obtém títulos similares a um filme.
-     * Endpoint: GET /movie/{id}/similar
+     * Obtém títulos semelhantes a um filme.
      *
      * @param id Identificador único do filme no TMDb.
      * @param apiKey Chave de autenticação da API do TMDb.
@@ -300,7 +281,6 @@ interface TmdbApiService {
 
     /**
      * Obtém títulos similares a uma série.
-     * Endpoint: GET /tv/{id}/similar
      *
      * @param id Identificador único da série no TMDb.
      * @param apiKey Chave de autenticação da API do TMDb.

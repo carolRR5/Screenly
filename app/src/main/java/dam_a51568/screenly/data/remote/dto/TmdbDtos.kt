@@ -4,7 +4,12 @@ import com.google.gson.annotations.SerializedName
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-// Representa a resposta da API do TMDb. Contém a lista de resultados devolvidos pela pesquisa.
+/**
+ * Representa a resposta da API do TMDb para pesquisas multi-conteúdo.
+ * Contém a lista de resultados devolvidos pela pesquisa.
+ *
+ * @param results Lista de itens de média (filmes ou séries) encontrados.
+ */
 data class TmdbSearchResponse(
     @SerializedName("results") val results: List<TmdbMediaItem>
 )
@@ -12,6 +17,9 @@ data class TmdbSearchResponse(
 /**
  * Representa a resposta da API ao endpoint de créditos de um filme ou série.
  * Contém separadamente o elenco (atores) e a crew (equipa técnica).
+ *
+ * @param cast Lista de membros do elenco.
+ * @param crew Lista de membros da equipa técnica.
  */
 data class TmdbCreditsResponse(
     @SerializedName("cast") val cast: List<TmdbCastMember>,
@@ -58,6 +66,16 @@ data class TmdbCrewMember(
  * - Para filmes é usado "title" e "release_date"
  * - Para séries é usado "name" e "first_air_date"
  * O campo "media_type" indica qual dos dois tipos é.
+ *
+ * @param id Identificador único do conteúdo no TMDb.
+ * @param mediaType Tipo de conteúdo ("movie" para filmes, "tv" para séries).
+ * @param title Título do filme (null se for uma série).
+ * @param name Nome da série (null se for um filme).
+ * @param overview Sinopse ou resumo do conteúdo.
+ * @param posterPath Caminho para a imagem do póster (pode ser null).
+ * @param releaseDate Data de lançamento do filme (null se for uma série).
+ * @param firstAirDate Data de estreia da série (null se for um filme).
+ * @param voteAverage Classificação média dos utilizadores.
  */
 data class TmdbMediaItem(
     @SerializedName("id") val id: Int,
@@ -86,6 +104,15 @@ data class TmdbMediaItem(
 /**
  * Representa os detalhes completos de um filme.
  * Utilizado no ecrã de detalhes após o utilizador selecionar um filme nos resultados de pesquisa.
+ *
+ * @param id Identificador único do filme no TMDb.
+ * @param title Título oficial do filme.
+ * @param overview Sinopse detalhada do filme.
+ * @param posterPath Caminho para a imagem do póster (pode ser null).
+ * @param releaseDate Data de lançamento oficial.
+ * @param runtime Duração total do filme em minutos (pode ser null).
+ * @param genres Lista de géneros associados ao filme.
+ * @param voteAverage Classificação média atribuída pelos utilizadores.
  */
 data class TmdbMovieDetails(
     @SerializedName("id") val id: Int,
@@ -101,6 +128,15 @@ data class TmdbMovieDetails(
 /**
  * Representa os detalhes completos de uma série.
  * Utilizado no ecrã de detalhes após o utilizador selecionar uma série nos resultados de pesquisa.
+ *
+ * @param id Identificador único da série no TMDb.
+ * @param name Nome oficial da série.
+ * @param overview Sinopse detalhada da série.
+ * @param posterPath Caminho para a imagem do póster (pode ser null).
+ * @param firstAirDate Data em que a série estreou.
+ * @param episodeRunTime Lista com as durações possíveis de episódios em minutos.
+ * @param genres Lista de géneros associados à série.
+ * @param voteAverage Classificação média atribuída pelos utilizadores.
  */
 data class TmdbTvShowDetails(
     @SerializedName("id") val id: Int,
@@ -114,8 +150,8 @@ data class TmdbTvShowDetails(
 ) {
     /**
      * Devolve a duração típica de um episódio em minutos.
-     * A API pode devolver uma lista com vários valores (episódios de durações diferentes), por isso
-     * utiliza-se o primeiro como referência. Assume 45 minutos se a lista estiver vazia.
+     * A API pode devolver uma lista com vários valores (episódios de durações diferentes), utilizando
+     * o primeiro como referência. Assume 45 minutos se a lista estiver vazia.
      */
     val typicalEpisodeRuntime: Int
         get() = episodeRunTime?.firstOrNull() ?: 45 // 45min por defeito se não houver dados
@@ -124,12 +160,22 @@ data class TmdbTvShowDetails(
 /**
  * Representa um género associado a um filme ou série (ex: Ação, Comédia, Drama).
  * Partilhado entre TmdbMovieDetails e TmdbTvShowDetails.
+ *
+ * @param id Identificador único do género.
+ * @param name Nome do género na língua solicitada.
  */
 data class TmdbGenre(
     @SerializedName("id") val id: Int,
     @SerializedName("name") val name: String
 )
 
+/**
+ * Representa um país de origem conforme as configurações da API do TMDb.
+ *
+ * @param code Código do país no padrão ISO 3166-1 (ex: "PT", "US").
+ * @param englishName Nome do país em inglês.
+ * @param nativeName Nome do país na sua língua nativa.
+ */
 data class TmdbCountry(
     @SerializedName("iso_3166_1") val code: String,  // ex: "PT", "US"
     @SerializedName("english_name") val englishName: String,
@@ -139,6 +185,8 @@ data class TmdbCountry(
 /**
  * Representa a resposta da API ao endpoint de géneros.
  * Contém a lista de géneros disponíveis para filmes ou séries.
+ *
+ * @param genres Lista de géneros devolvidos pela API.
  */
 data class TmdbGenreResponse(
     @SerializedName("genres") val genres: List<TmdbGenre>
@@ -159,7 +207,7 @@ data class TmdbVideosResponse(
  * @param key Chave do vídeo no YouTube (usada para construir o URL).
  * @param site Plataforma onde o vídeo está alojado (ex: "YouTube").
  * @param type Tipo de vídeo (ex: "Trailer", "Teaser", "Clip").
- * @param official Indica se o vídeo é oficial.
+ * @param official Indica se o vídeo é um conteúdo oficial de produção.
  */
 data class TmdbVideo(
     @SerializedName("key") val key: String,
@@ -168,8 +216,8 @@ data class TmdbVideo(
     @SerializedName("official") val official: Boolean
 ) {
     /**
-     * URL completo do vídeo no YouTube.
-     * Construído a partir da chave devolvida pela API do TMDb.
+     * URL completo do vídeo no YouTube para reprodução direta ou intent externa.
+     * Construído dinamicamente a partir da chave devolvida pela API do TMDb.
      */
     val youtubeUrl: String
         get() = "https://www.youtube.com/watch?v=$key"
@@ -178,9 +226,9 @@ data class TmdbVideo(
 /**
  * Representa a resposta da API ao endpoint de reviews de um título.
  *
- * @param results Lista de reviews.
- * @param totalPages Total de páginas disponíveis.
- * @param totalResults Total de reviews disponíveis.
+ * @param results Lista de reviews da página atual.
+ * @param totalPages Total de páginas de reviews disponíveis para paginação.
+ * @param totalResults Número total de reviews existentes no servidor para este título.
  */
 data class TmdbReviewsResponse(
     @SerializedName("results") val results: List<TmdbReview>,
@@ -191,11 +239,11 @@ data class TmdbReviewsResponse(
 /**
  * Representa uma review de um filme ou série no TMDb.
  *
- * @param id Identificador único da review.
- * @param author Nome do autor da review.
- * @param authorDetails Detalhes do autor, incluindo avatar e classificação.
- * @param content Texto da review.
- * @param createdAt Data de criação da review.
+ * @param id Identificador único da review (em formato String da API).
+ * @param author Nome visível do autor da crítica.
+ * @param authorDetails Objeto com detalhes adicionais do autor (avatar e nota).
+ * @param content Texto completo da review.
+ * @param createdAt Data e hora de publicação original enviada pela API.
  */
 data class TmdbReview(
     @SerializedName("id") val id: String,
@@ -205,7 +253,7 @@ data class TmdbReview(
     @SerializedName("created_at") val createdAt: String
 ) {
     /**
-     * Data de criação formatada para apresentação (ex: "Janeiro 2024").
+     * Data de criação formatada para apresentação amigável na UI (ex: "Janeiro 2024").
      */
     val formattedDate: String
         get() = try {
@@ -228,7 +276,7 @@ data class TmdbReview(
  * Representa os detalhes do autor de uma review.
  *
  * @param avatarPath Caminho do avatar do autor (pode ser null).
- * @param rating Classificação atribuída pelo autor (pode ser null).
+ * @param rating Classificação de 1 a 10 atribuída pelo autor ao título (pode ser null).
  */
 data class TmdbReviewAuthor(
     @SerializedName("avatar_path") val avatarPath: String?,
