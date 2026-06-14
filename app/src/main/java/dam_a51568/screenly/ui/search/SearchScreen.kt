@@ -50,9 +50,12 @@ fun SearchScreen(
     onCountryClick: () -> Unit,
     viewModel: SearchViewModel = viewModel()
 ) {
+    // Observa de forma reativa o estado atual do ecrã (Idle, Loading, Empty, Error ou Success)
     val uiState by viewModel.uiState.collectAsState()
+    // Observa de forma reativa o texto atual escrito na barra de pesquisa
     val query by viewModel.query.collectAsState()
 
+    // Coluna principal que ocupa todo o ecrã, com fundo escuro e padding nas margens
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -68,24 +71,33 @@ fun SearchScreen(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
+        // Espaço entre o título e a barra de pesquisa
         Spacer(modifier = Modifier.height(24.dp))
 
+        // Barra de pesquisa, que reporta ao ViewModel sempre que o texto muda
         SearchBar(
             query = query,
             onQueryChange = viewModel::onQueryChange
         )
 
+        // Espaço entre a barra de pesquisa e o conteúdo abaixo (resultados, etc.)
         Spacer(modifier = Modifier.height(80.dp))
 
+        // Renderiza o conteúdo apropriado consoante o estado atual do ecrã
         when (val state = uiState) {
+            // Estado inicial: ainda não houve pesquisa, mostra categorias para explorar
             is SearchUiState.Idle -> IdleContent(
                 onCategoryClick = onCategoryClick,
                 onGenreClick = onGenreClick,
                 onCountryClick = onCountryClick
             )
+            // A pesquisa está a ser efetuada na API, mostra um indicador de carregamento
             is SearchUiState.Loading -> LoadingContent()
+            // A pesquisa terminou, mas não devolveu resultados
             is SearchUiState.Empty -> EmptyContent(query = query)
+            // Ocorreu um erro durante a pesquisa, mostra a mensagem de erro
             is SearchUiState.Error -> ErrorContent(message = state.message)
+            // A pesquisa devolveu resultados, mostra-os numa grelha
             is SearchUiState.Success -> ResultsGrid(
                 results = state.results,
                 onItemClick = onItemClick
@@ -106,6 +118,7 @@ private fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit
 ) {
+    // Campo de texto com bordo, usado como barra de pesquisa
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
@@ -113,12 +126,14 @@ private fun SearchBar(
             .fillMaxWidth()
             .height(60.dp),
         placeholder = {
+            // Texto exibido quando o campo está vazio
             Text(text = "Pesquisar filmes e séries...",
                 color = TextSecondary,
                 fontSize = 16.sp
             )
         },
         leadingIcon = {
+            // Ícone de lupa à esquerda do campo
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Pesquisar",
@@ -155,7 +170,9 @@ private fun IdleContent(
     onGenreClick: () -> Unit,
     onCountryClick: () -> Unit
 ) {
+    // Coluna que ocupa todo o espaço disponível, com a lista de categorias a explorar
     Column(modifier = Modifier.fillMaxSize()) {
+        // Título da secção
         Text(
             text = "Explorar por",
             color = TextPrimary,
@@ -164,6 +181,7 @@ private fun IdleContent(
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
+        // Texto descritivo da secção
         Text(
             text = "Descobre novos filmes e séries por categoria",
             color = TextSecondary,
@@ -171,30 +189,35 @@ private fun IdleContent(
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
+        // Item para navegar para os títulos mais populares
         BrowseItem(
             title = "Mais Populares",
             description = "Os títulos mais vistos agora",
             onClick = { onCategoryClick(BrowseFilter.POPULAR) }
         )
         BrowseDivider()
+        // Item para navegar para os títulos mais bem classificados
         BrowseItem(
             title = "Melhor Classificados",
             description = "Os títulos com melhor nota da comunidade",
             onClick = { onCategoryClick(BrowseFilter.TOP_RATED) }
         )
         BrowseDivider()
+        // Item para navegar para os lançamentos mais recentes
         BrowseItem(
             title = "Lançamentos Recentes",
             description = "Títulos lançados nos últimos 6 meses",
             onClick = { onCategoryClick(BrowseFilter.RECENT) }
         )
         BrowseDivider()
+        // Item que abre o ecrã de seleção de géneros
         BrowseItem(
             title = "Por Género",
             description = "Acção, Comédia, Drama, Terror e mais",
             onClick = onGenreClick
         )
         BrowseDivider()
+        // Item que abre o ecrã de seleção de países
         BrowseItem(
             title = "Por País",
             description = "Explora cinema de todo o mundo",
@@ -215,6 +238,7 @@ private fun BrowseItem(
     description: String,
     onClick: () -> Unit
 ) {
+    // Linha clicável com título/descrição à esquerda e seta indicativa à direita
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -223,14 +247,18 @@ private fun BrowseItem(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Coluna com o título e a descrição, ocupa o espaço restante (weight = 1f)
         Column(modifier = Modifier.weight(1f)) {
+            // Título do item de navegação
             Text(
                 text = title,
                 color = TextPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold
             )
+            // Pequeno espaço entre o título e a descrição
             Spacer(modifier = Modifier.height(2.dp))
+            // Descrição/subtítulo do item
             Text(
                 text = description,
                 color = TextSecondary,
@@ -238,6 +266,7 @@ private fun BrowseItem(
             )
         }
 
+        // Símbolo ">" indicando que o item é navegável
         Text(
             text = "›",
             color = TextSecondary,
@@ -251,6 +280,7 @@ private fun BrowseItem(
  */
 @Composable
 private fun BrowseDivider() {
+    // Linha horizontal fina, sem padding adicional
     HorizontalDivider(color = CardBackground, thickness = 1.dp)
 }
 
@@ -259,10 +289,12 @@ private fun BrowseDivider() {
  */
 @Composable
 private fun LoadingContent() {
+    // Box que ocupa todo o ecrã, centrando o spinner
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        // Indicador de progresso circular, na cor da marca
         CircularProgressIndicator(color = BrandPurple)
     }
 }
@@ -274,10 +306,12 @@ private fun LoadingContent() {
  */
 @Composable
 private fun EmptyContent(query: String) {
+    // Box que ocupa todo o ecrã, centrando a mensagem
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        // Mensagem informando que não há resultados para o termo pesquisado
         Text(
             text = "Sem resultados para \"$query\"",
             color = TextSecondary,
@@ -293,10 +327,12 @@ private fun EmptyContent(query: String) {
  */
 @Composable
 private fun ErrorContent(message: String) {
+    // Box que ocupa todo o ecrã, centrando a mensagem de erro
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        // Mensagem de erro, apresentada na cor de erro definida no tema
         Text(text = message, color = ErrorRed, fontSize = 16.sp)
     }
 }
@@ -312,12 +348,14 @@ private fun ResultsGrid(
     results: List<MediaItem>,
     onItemClick: (id: Int, mediaType: String) -> Unit
 ) {
+    // Grelha vertical com 3 colunas fixas, com espaçamento horizontal e vertical entre itens
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(bottom = 16.dp)
     ) {
+        // Itera sobre os resultados e renderiza um cartão para cada item
         items(results) { item ->
             MediaItemCard(
                 item = item,
@@ -338,13 +376,17 @@ private fun MediaItemCard(
     item: MediaItem,
     onClick: () -> Unit
 ) {
+    // Coluna com cantos arredondados e fundo de "cartão", clicável
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .background(CardBackground)
             .clickable(onClick = onClick)
     ) {
+        // Imagem do poster, carregada de forma assíncrona a partir de uma URL
         AsyncImage(
+            // Se o posterUrl já for uma URL completa, usa-a diretamente;
+            // caso contrário, concatena com a base de imagens da TMDB
             model = if (item.posterUrl.startsWith("http")) item.posterUrl else "${TmdbClient.IMAGE_BASE_URL}${item.posterUrl}",
             contentDescription = item.title,
             contentScale = ContentScale.Crop,
@@ -353,7 +395,9 @@ private fun MediaItemCard(
                 .aspectRatio(2f / 3f)
         )
 
+        // Coluna com o título e o ano do item, abaixo do poster
         Column(modifier = Modifier.padding(8.dp)) {
+            // Título do filme/série, limitado a 2 linhas, com "..." se for muito longo
             Text(
                 text = item.title,
                 color = TextPrimary,
@@ -362,7 +406,9 @@ private fun MediaItemCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
+            // Pequeno espaço entre o título e o ano
             Spacer(modifier = Modifier.height(2.dp))
+            // Ano de lançamento do filme/série
             Text(
                 text = item.year,
                 color = TextSecondary,
