@@ -24,11 +24,14 @@ import dam_a51568.screenly.ui.theme.TextSecondary
 
 /**
  * Secção de títulos similares com slider horizontal.
- * Apresenta os títulos similares num LazyRow com scroll horizontal.
- * Ao clicar num título navega para o seu ecrã de detalhes.
  *
- * @param titles Lista de títulos similares.
- * @param onItemClick Callback chamado ao clicar num título.
+ * Apresenta os títulos similares ao atual num [LazyRow] com scroll horizontal.
+ * Só é apresentada quando a lista [titles] não está vazia — essa verificação
+ * é feita no [DetailScreen] antes de invocar esta composable.
+ *
+ * @param titles Lista de títulos similares a apresentar.
+ * @param onItemClick Callback invocado ao clicar num título, com o [id]
+ *                    e o [mediaType] para navegação para o ecrã de detalhes.
  */
 @Composable
 fun DetailSimilarSection(
@@ -38,8 +41,9 @@ fun DetailSimilarSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 8.dp)
+            .padding(bottom = 8.dp) // Margem inferior antes do próximo separador ou secção
     ) {
+        // Cabeçalho da secção com padding lateral alinhado ao restante conteúdo do ecrã
         Text(
             text = "Títulos Similares",
             color = TextPrimary,
@@ -48,29 +52,35 @@ fun DetailSimilarSection(
             modifier = Modifier.padding(horizontal = 24.dp)
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp)) // Espaço entre o cabeçalho e o slider
 
+        // Slider horizontal com renderização eficiente via LazyRow
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 24.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp), // Espaço entre cartões
+            contentPadding = PaddingValues(horizontal = 24.dp) // Margem lateral do slider
         ) {
+            // Cria um cartão por cada título similar da lista
             items(titles) { item ->
                 SimilarTitleCard(item) {
+                    // Passa o id e o mediaType ao callback para navegação para o detalhe
                     onItemClick(item.id, item.mediaType)
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp)) // Margem inferior da secção
     }
 }
 
 /**
- * Cartão individual de um título similar.
- * Largura fixa de 120dp para manter consistência no slider.
+ * Cartão individual de um título similar no slider horizontal.
  *
- * @param item Dados do título similar.
- * @param onClick Callback chamado ao clicar no cartão.
+ * Tem largura fixa de 120dp — ligeiramente menor que os cartões das listas
+ * horizontais do ecrã principal (140dp) para caber mais títulos no slider.
+ * O póster usa o rácio 2:3 padrão de cinema para consistência visual.
+ *
+ * @param item Dados do título similar, incluindo póster, título e ano.
+ * @param onClick Callback invocado ao clicar no cartão.
  */
 @Composable
 private fun SimilarTitleCard(
@@ -79,33 +89,35 @@ private fun SimilarTitleCard(
 ) {
     Column(
         modifier = Modifier
-            .width(120.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardBackground)
-            .clickable(onClick = onClick)
+            .width(120.dp) // Largura fixa menor que os cartões do ecrã principal
+            .clip(RoundedCornerShape(12.dp))  // Cantos arredondados aplicados a toda a coluna
+            .background(CardBackground) // Fundo de cartão distinto do fundo do ecrã
+            .clickable(onClick = onClick) // Torna todo o cartão clicável
     ) {
         AsyncImage(
-            model = if (item.posterUrl.startsWith("http")) item.posterUrl else "${TmdbClient.IMAGE_BASE_URL}${item.posterUrl}",
-            contentDescription = item.title,
-            contentScale = ContentScale.Crop,
+            // Suporta URLs absolutas (http) e caminhos relativos do TMDb
+            model = if (item.posterUrl.startsWith("http")) item.posterUrl
+            else "${TmdbClient.IMAGE_BASE_URL}${item.posterUrl}",
+            contentDescription = item.title, // Descrição para leitores de ecrã
+            contentScale = ContentScale.Crop, // Recorta a imagem para preencher sem distorção
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(2f / 3f)
+                .aspectRatio(2f / 3f) // Rácio 2:3 — proporção padrão de póster de cinema
         )
         Column(modifier = Modifier.padding(8.dp)) {
             Text(
                 text = item.title,
                 color = TextPrimary,
-                fontSize = 11.sp,
+                fontSize = 11.sp, // Tamanho reduzido para caber na largura de 120dp
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                maxLines = 2, // Limita a 2 linhas para uniformidade entre cartões
+                overflow = TextOverflow.Ellipsis // Adiciona "…" se o título for demasiado longo
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(2.dp)) // Pequeno espaço entre título e ano
             Text(
                 text = item.year,
-                color = TextSecondary,
-                fontSize = 10.sp
+                color = TextSecondary, // Cor secundária para o ano (informação menos relevante)
+                fontSize = 10.sp // Tamanho mínimo para não ocupar demasiado espaço
             )
         }
     }

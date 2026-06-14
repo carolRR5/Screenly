@@ -22,27 +22,33 @@ import dam_a51568.screenly.ui.theme.TextPrimary
 
 /**
  * Separadores disponíveis na secção de créditos do ecrã de detalhes.
+ * Usado por [DetailCreditsSection] para controlar qual lista está expandida.
  */
 enum class CreditsTab {
-    CAST,
-    CREW
+    CAST, // Separador do elenco
+    CREW  // Separador da equipa técnica
 }
 
 /**
  * Ecrã de Detalhes da aplicação Screenly.
  *
- * Orquestra as várias secções do ecrã:
- * - [DetailMainInfo] — póster, informações e watchlist
- * - [DetailRatingSection] — avaliação pessoal (apenas em WATCHED)
- * - [DetailCreditsSection] — elenco e crew
- * - [DetailSimilarSection] — títulos similares
- * - [DetailReviewsSection] — reviews da comunidade
+ * Orquestra todas as secções do ecrã num [Column] com scroll vertical:
+ * - [DetailMainInfo] — póster, informações gerais e botões de watchlist
+ * - [DetailRatingSection] — avaliação e review pessoal (apenas quando WATCHED)
+ * - [DetailCreditsSection] — elenco e equipa técnica expansíveis
+ * - [DetailSimilarSection] — títulos similares em slider horizontal
+ * - [DetailReviewsSection] — reviews da comunidade com paginação progressiva
+ *
+ * O carregamento é disparado por [LaunchedEffect] quando [id] ou [mediaType]
+ * mudam, garantindo que a navegação entre detalhes recarrega corretamente.
  *
  * @param id Identificador único do título no TMDb.
- * @param mediaType Tipo de conteúdo: "movie" ou "tv".
- * @param onBack Callback chamado ao clicar no botão de retroceder.
- * @param onSimilarItemClick Callback chamado ao clicar num título similar.
- * @param viewModel ViewModel que gere o estado do ecrã.
+ * @param mediaType Tipo de conteúdo: "movie" para filmes ou "tv" para séries.
+ * @param onBack Callback invocado ao clicar no botão de retroceder.
+ * @param onSimilarItemClick Callback invocado ao clicar num título similar,
+ *                           com o [id] e [mediaType] para navegação.
+ * @param viewModel ViewModel que gere o estado do ecrã; criado automaticamente
+ *                  pelo Compose se não for fornecido explicitamente.
  */
 @Composable
 fun DetailScreen(
@@ -52,6 +58,7 @@ fun DetailScreen(
     onSimilarItemClick: (id: Int, mediaType: String) -> Unit,
     viewModel: DetailViewModel = viewModel()
 ) {
+    // Observa todos os estados do ViewModel como estados do Compose
     val uiState by viewModel.uiState.collectAsState()
     val watchStatus by viewModel.watchStatus.collectAsState()
     val cast by viewModel.cast.collectAsState()
@@ -61,16 +68,19 @@ fun DetailScreen(
     val visibleReviewsCount by viewModel.visibleReviewsCount.collectAsState()
     val similarTitles by viewModel.similarTitles.collectAsState()
 
+    // Dispara o carregamento sempre que id ou mediaType mudam
+    // (ex: ao navegar de um título similar para o seu detalhe)
     LaunchedEffect(id, mediaType) {
         viewModel.loadDetails(id, mediaType)
     }
 
+    // Coluna raiz com fundo escuro que envolve a barra de topo e o conteúdo
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundDark)
     ) {
-        // Barra de topo com botão de retroceder
+        // Barra de topo minimalista com apenas o botão de retroceder
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -79,14 +89,17 @@ fun DetailScreen(
         ) {
             IconButton(onClick = onBack) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Retroceder",
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack, // Ícone espelhado para RTL
+                    contentDescription = "Retroceder", // Descrição para acessibilidade
                     tint = TextPrimary
                 )
             }
         }
 
+        // Seleciona o conteúdo a mostrar consoante o estado atual da UI
         when (val state = uiState) {
+
+            // Estado de carregamento: spinner centrado enquanto a API responde
             is DetailUiState.Loading -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -95,6 +108,8 @@ fun DetailScreen(
                     CircularProgressIndicator(color = BrandPurple)
                 }
             }
+
+            // Estado de erro: mensagem a vermelho centrada no ecrã
             is DetailUiState.Error -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -103,20 +118,26 @@ fun DetailScreen(
                     Text(text = state.message, color = ErrorRed)
                 }
             }
+
+            // Estado de sucesso: apresenta todas as secções num Column scrollable
             is DetailUiState.Success -> {
+                // Obtém o item da watchlist correspondente ao título atual para passar
+                // a classificação e review existentes à secção de avaliação.
+                // Recalcula apenas quando watchStatus muda, evitando pesquisas desnecessárias.
                 val currentItem = remember(watchStatus) {
                     if (watchStatus != null) {
                         WatchlistRepository.items
                             .firstOrNull { it.id == state.data.id && it.mediaType == state.data.mediaType }
-                    } else null
+                    } else null // Null se o título não estiver na watchlist
                 }
 
+                // Column scrollável que contém todas as secções do ecrã de detalhes
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(rememberScrollState()) // Scroll vertical de todo o conteúdo
                 ) {
-                    // Póster + Informações + Watchlist
+                    // Secção 1: Póster, informações gerais e botões de watchlist
                     DetailMainInfo(
                         data = state.data,
                         watchStatus = watchStatus,
@@ -129,17 +150,18 @@ fun DetailScreen(
                         }
                     )
 
+                    // Separador visual entre secções
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 24.dp),
-                        color = CardBackground,
+                        color = CardBackground, // Cor subtil para não distrair do conteúdo
                         thickness = 1.dp
                     )
 
-                    // Avaliação pessoal (apenas em WATCHED)
+                    // Secção 2: Avaliação e review pessoal, sendo que só visível quando o status estiver em WATCHED
                     if (watchStatus == WatchStatus.WATCHED) {
                         DetailRatingSection(
-                            currentRating = currentItem?.rating,
-                            currentReview = currentItem?.review,
+                            currentRating = currentItem?.rating, // Null se ainda não avaliado
+                            currentReview = currentItem?.review, // Null se ainda não escrito
                             onSaveRatingAndReview = { rating, review ->
                                 viewModel.saveRatingAndReview(
                                     state.data.id,
@@ -159,13 +181,13 @@ fun DetailScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Elenco e Crew
+                    // Secção 3: Elenco e equipa técnica em listas expansíveis
                     DetailCreditsSection(
                         cast = cast,
                         crew = crew
                     )
 
-                    // Títulos Similares
+                    // Secção 4: Títulos similares, sendo que só apresentada se a lista não estiver vazia
                     if (similarTitles.isNotEmpty()) {
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 24.dp),
@@ -179,7 +201,7 @@ fun DetailScreen(
                         )
                     }
 
-                    // Reviews da comunidade
+                    // Secção 5: Reviews da comunidade, sendo que é apresentada apenas se existirem reviews
                     if (reviews.isNotEmpty()) {
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 24.dp),
@@ -190,7 +212,7 @@ fun DetailScreen(
                         DetailReviewsSection(
                             reviews = reviews,
                             visibleCount = visibleReviewsCount,
-                            hasMore = viewModel.hasMoreReviews,
+                            hasMore = viewModel.hasMoreReviews, // Propriedade calculada no ViewModel
                             onLoadMore = {
                                 viewModel.loadMoreReviews(
                                     state.data.id,
@@ -200,7 +222,7 @@ fun DetailScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(32.dp)) // Margem inferior do ecrã
                 }
             }
         }
