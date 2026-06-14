@@ -32,6 +32,10 @@ fun DetailRatingSection(
     var selectedRating by remember(currentRating) { mutableFloatStateOf(currentRating ?: 0f) }
     var reviewText by remember(currentReview) { mutableStateOf(currentReview ?: "") }
 
+    // Verifica se houve alterações em relação ao que está guardado na Firestore
+    val hasChanges = selectedRating != (currentRating ?: 0f) || reviewText != (currentReview ?: "")
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -77,18 +81,23 @@ fun DetailRatingSection(
         Spacer(modifier = Modifier.height(12.dp))
 
         Button(
-            onClick = { onSaveRatingAndReview(selectedRating, reviewText) },
-            enabled = selectedRating > 0f,
+            onClick = {
+                onSaveRatingAndReview(selectedRating, reviewText)
+                focusManager.clearFocus() // Esconde o teclado
+            },
+            enabled = selectedRating > 0f && hasChanges, // Só permite clicar se houver mudanças
             colors = ButtonDefaults.buttonColors(
                 containerColor = BrandPurple,
                 contentColor = TextPrimary,
-                disabledContainerColor = CardBackground,
+                disabledContainerColor = CardBackground.copy(alpha = 0.5f),
                 disabledContentColor = TextSecondary
             ),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(text = "Guardar avaliação")
+            Text(
+                text = if (!hasChanges && selectedRating > 0f) "Avaliação guardada ✓" else "Guardar avaliação"
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
