@@ -140,4 +140,21 @@ object UserRepository {
             // Executado quando ocorre algum erro durante a escrita
             .addOnFailureListener { onError(it) }
     }
+
+    /**
+     * Atualiza apenas o campo do nome do utilizador na Firestore.
+     *
+     * Utiliza .update() em vez de .set() para garantir que apenas o campo
+     * "displayName" é alterado, preservando todos os restantes campos do documento,
+     * nomeadamente a foto de perfil (photoBase64).
+     *
+     * @param uid UID do utilizador.
+     * @param displayName Novo nome a guardar.
+     * @return Uma [Task] que representa a operação assíncrona de escrita.
+     */
+    fun updateDisplayName(uid: String, displayName: String): Task<Void> {
+        // Atualiza apenas o campo displayName, sem substituir o documento inteiro
+        return usersCollection.document(uid)
+            .update("displayName", displayName)
+    }
 }

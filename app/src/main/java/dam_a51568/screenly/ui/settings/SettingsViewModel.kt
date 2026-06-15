@@ -91,11 +91,10 @@ class SettingsViewModel : ViewModel() {
             // Pede ao Firebase Auth para atualizar o displayName do utilizador
             firebaseUser.updateProfile(profileUpdates)
                 .addOnSuccessListener {
-                    // 2. Atualizar na Firestore
-                    // Reconstrói o objeto User a partir do firebaseUser (já com o novo nome)
-                    val updatedUser = firebaseUser.toUser() // Já terá o novo displayName
-                    // Guarda os dados atualizados na Firestore, para manter consistência
-                    UserRepository.saveUser(updatedUser)
+                    // Atualiza apenas o campo do nome na Firestore usando .update()
+                    // em vez de .set(), para não apagar a foto de perfil (photoBase64)
+                    // que está guardada no mesmo documento
+                    UserRepository.updateDisplayName(firebaseUser.uid, newName)
                         .addOnSuccessListener {
                             // Ambas as operações (Auth + Firestore) tiveram sucesso
                             _operationState.value = SettingsOperationState.Success("Nome atualizado com sucesso")

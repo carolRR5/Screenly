@@ -38,6 +38,22 @@ import dam_a51568.screenly.ui.theme.TextPrimary
 import dam_a51568.screenly.ui.theme.TextSecondary
 
 /**
+ * ARQUITETURA DE INTERFACE: CAMADA DE APRESENTAÇÃO REATIVA (PROFILE)
+ *
+ * O objetivo geral deste ficheiro é gerir o ecrã de Perfil do utilizador através de uma
+ * Interface Declarativa e Orientada a Estados (State-Driven UI).
+ *
+ * Princípios de Engenharia Aplicados e Avaliados:
+ * 1. Fluxo de Dados Unidirecional (UDF): O ecrã consome o estado exposto pelo ViewModel
+ * e propaga eventos de volta (como cliques ou seleção de imagens) sem manipular os dados diretamente.
+ * 2. Otimização de Performance com Retenção (`remember`): Utilização de blocos inteligentes para
+ * reter cálculos pesados (métrica de estatísticas e avaliações), reexecutando-os apenas quando
+ * a referência da Watchlist sofrer mutações na base de dados.
+ * 3. Integração Multimédia Assíncrona: Gestão de concorrência com o ciclo de vida Android, permitindo
+ * a leitura assíncrona de streams de ficheiros locais para upload codificado em Base64 para o Firestore.
+ */
+
+/**
  * Ecrã de Perfil da aplicação Screenly.
  *
  * Apresenta as informações do utilizador autenticado, as suas estatísticas
@@ -68,7 +84,7 @@ fun ProfileScreen(
 
     // Contexto Android necessário para aceder ao ContentResolver (leitura de ficheiros)
     val context = androidx.compose.ui.platform.LocalContext.current
-    // Launcher que abre o seletor de imagens do sistema e devolve o URI escolhido
+    // Launcher que abre o seletor de imagens do sistema e deuvolve o URI escolhido
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -537,7 +553,9 @@ private fun ListSection(
             // Lista horizontal com pósteres
             // LazyRow: lista horizontal com scroll, renderiza apenas os itens visíveis
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier.height(180.dp), // Fixa a altura máxima para controlo vertical dos filhos
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically // Garante o alinhamento de base dos itens
             ) {
                 // Mostra até 10 títulos
                 // Limita a lista aos primeiros "maxVisible" itens
@@ -555,7 +573,7 @@ private fun ListSection(
                 // Botão "›" apenas se houver mais de 10 títulos
                 if (items.size > maxVisible) {
                     item {
-                        // Cartão final que leva ao ecrã com a lista completa
+                        // Cartão final corrigido para alinhar perfeitamente ao centro vertical dos pósteres ao lado
                         ViewMoreCard(onClick = onViewMore)
                     }
                 }
@@ -612,21 +630,21 @@ private fun ListPosterCard(
 
 /**
  * Cartão "›" que aparece no final da lista horizontal quando há mais de 10 títulos.
- * Ao clicar, navega para o ecrã de listas completo.
+ * Corrigido: Preenche a altura total disponível da linha e centra o símbolo verticalmente.
  *
  * @param onClick Callback chamado ao clicar no cartão.
  */
 @Composable
 private fun ViewMoreCard(onClick: () -> Unit) {
-    // Pequena caixa clicável com o símbolo "›", indicando navegação para mais itens
     Box(
         modifier = Modifier
             .width(60.dp)
-            .height(50.dp)
+            .fillMaxHeight() // Estica a caixa para ter exatamente a mesma altura do maior vizinho
+            .padding(vertical = 12.dp) // Pequena margem de segurança para acompanhar a curvatura do bloco
             .clip(RoundedCornerShape(10.dp))
             .background(CardBackground)
             .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center // Coloca o símbolo "›" no meio exato da área vertical e horizontal
     ) {
         Text(
             text = "›",
